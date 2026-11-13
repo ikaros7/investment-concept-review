@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#205d50">
+  <meta name="description" content="依据本对话整理的投资概念复习册。每次一个概念，先看讲解和简单例子，再做两道题，提交后查看解析。">
+  <title>投资概念复习册</title>
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="./bank.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#lesson-panel">跳到概念讲解</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#stock" aria-label="投资概念复习册，回到第一个概念">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M16 8c-4-3-8-3-12-2v19c4-1 8-1 12 2 4-3 8-3 12-2V6c-4-1-8-1-12 2Z"/><path d="M16 8v19M8 11l4 1M8 16l4 1M20 12l4-1M20 17l4-1"/></svg></span>
+        <span><strong>投资概念复习册</strong><small>从一间小店，读懂投资</small></span>
+      </a>
+      <div class="font-tools" aria-label="阅读字号">
+        <span>阅读字号</span>
+        <button id="font-smaller" type="button" aria-label="缩小阅读字号">A−</button>
+        <output id="font-value" aria-live="polite">18</output>
+        <button id="font-larger" type="button" aria-label="放大阅读字号">A＋</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="page-shell">
+    <section class="opening" aria-labelledby="page-title">
+      <div class="opening-copy">
+        <p class="eyebrow"><span></span>我们的投资入门课 · 概念复习</p>
+        <h1 id="page-title">每次一个概念，<br>慢慢学会投资。</h1>
+        <p class="intro">先读讲解和简单例子，再试两道题。<br class="desktop-break">答完以后，一起看看哪里懂了、哪里还要想一想。</p>
+      </div>
+      <section class="progress-card" aria-labelledby="progress-title">
+        <div class="progress-label"><h2 id="progress-title">我的复习进度</h2><span class="local-badge">本机记录</span></div>
+        <p class="progress-number"><strong id="completed-count">0</strong><span>/ <span id="total-count">77</span> 个概念</span></p>
+        <div id="progress-track" class="progress-track" role="progressbar" aria-label="已练习概念" aria-valuemin="0" aria-valuemax="77" aria-valuenow="0"><span id="progress-fill"></span></div>
+        <div class="progress-bottom"><span>已练习 <b id="practiced-count">0</b> 个</span><button id="review-needed" type="button" disabled>待巩固 <b id="review-count">0</b> 个 <span aria-hidden="true">↗</span></button></div>
+      </section>
+    </section>
+
+    <button id="directory-toggle" class="directory-toggle" type="button" aria-controls="concept-sidebar" aria-expanded="false"><span aria-hidden="true">☰</span> 打开概念目录 <span id="mobile-position">01 / 77</span></button>
+    <main class="workspace" id="workspace">
+      <aside class="concept-sidebar" id="concept-sidebar" aria-label="概念目录">
+        <div class="sidebar-top"><div class="sidebar-heading"><h2>概念目录</h2><span id="directory-count">77 个</span></div>
+          <label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="concept-search" type="search" placeholder="找一个概念，如“基金”" aria-label="搜索概念"></label>
+        </div>
+        <nav id="concept-list" aria-label="按学习顺序浏览概念"></nav>
+        <p class="directory-note"><span class="dot done"></span> 两题答对 <span class="dot review"></span> 待巩固</p>
+      </aside>
+      <section class="lesson-panel" id="lesson-panel" aria-label="概念讲解与练习"></section>
+    </main>
+
+    <footer class="page-footer">
+      <p>学习内容整理自本对话 · <time datetime="2026-11-13">2026 年 11 月 13 日</time></p>
+      <details><summary>整理说明与记录方式</summary><p>共 77 个概念，每个概念配两道题。讲解沿用冰淇淋店等简单例子，练习题依据对话重新整理。所有金额、利率、价格和经营情况均为教学假设；计算题未列出的手续费、利息或税费按 0 元处理，具体简化口径以该概念和题目为准。</p><p>练习记录和字号保存在当前浏览器。更换浏览器、设备，或清除网站数据后，记录会有所不同。首次打开的练习状态为“未练习”，不把聊天中的作答自动记入网页进度。</p><p>页面阅读方式参考你提供的<a href="https://ikaros7.github.io/review-question-bank/" target="_blank" rel="noopener noreferrer">旧复习题库</a>。</p></details>
+      <p id="storage-status" class="storage-status" role="status"></p>
+    </footer>
+  </div>
+  <noscript><p class="noscript">请开启浏览器的 JavaScript，以阅读概念和完成练习。</p></noscript>
+</body>
+</html>
