@@ -9,6 +9,7 @@
   const drafts = new Map();
   let storageMessage = '';
   let directorySaveTimer;
+  let pageScrollY = 0;
   const mobileLayout = window.matchMedia('(max-width: 720px)');
   const sidebar = document.getElementById('concept-sidebar');
   const directoryContent = document.getElementById('directory-content');
@@ -208,23 +209,27 @@
   function setDirectoryOpen(open, returnFocus = false) {
     rememberDirectoryPosition();
     open = mobileLayout.matches && open;
+    const wasOpen = directoryToggle.getAttribute('aria-expanded') === 'true';
+    if (open && !wasOpen) {
+      pageScrollY = window.scrollY;
+      document.body.style.top = `-${pageScrollY}px`;
+    }
     document.documentElement.classList.toggle('directory-open', open);
+    if (!open && wasOpen) {
+      document.body.style.top = '';
+      window.scrollTo(0, pageScrollY);
+    }
     directoryToggle.setAttribute('aria-expanded', String(open));
     directoryToggle.setAttribute('aria-label', open ? '收起概念目录' : '展开概念目录');
-    directoryToggle.innerHTML = open ? '<span aria-hidden="true">‹</span><span>收起</span>' : '<span aria-hidden="true">☰</span><span>目录</span>';
     directoryContent.inert = mobileLayout.matches && !open;
     document.getElementById('directory-backdrop').hidden = !open;
-    for (const element of document.querySelectorAll('.site-header, .lesson-panel, .page-footer, .skip-link')) {
+    for (const element of document.querySelectorAll('.brand, .font-tools, #review-needed, .lesson-panel, .page-footer, .skip-link')) {
       element.inert = open;
     }
     if (open) {
-      sidebar.setAttribute('role', 'dialog');
-      sidebar.setAttribute('aria-modal', 'true');
       directoryContent.focus({ preventScroll: true });
       directoryList.scrollTop = state.directory.scrollTop;
     } else {
-      sidebar.removeAttribute('role');
-      sidebar.removeAttribute('aria-modal');
       if (returnFocus && mobileLayout.matches) directoryToggle.focus({ preventScroll: true });
     }
     clearTimeout(directorySaveTimer);
@@ -351,7 +356,7 @@
       event.preventDefault();
       closeDirectory(true);
     } else if (event.key === 'Tab') {
-      const controls = [...sidebar.querySelectorAll('button:not([disabled]), input, summary')]
+      const controls = [directoryToggle, ...sidebar.querySelectorAll('button:not([disabled]), input, summary')]
         .filter(element => !element.closest('[inert]') && element.getClientRects().length);
       const first = controls[0];
       const last = controls[controls.length - 1];
