@@ -7,8 +7,13 @@
   const chapterById = new Map(bank.chapters.map(chapter => [chapter.id, chapter]));
   const storageKey = 'investment-concept-review-v1';
   const drafts = new Map();
-  let search = '';
   let storageMessage = '';
+  let directorySaveTimer;
+  const mobileLayout = window.matchMedia('(max-width: 720px)');
+  const sidebar = document.getElementById('concept-sidebar');
+  const directoryContent = document.getElementById('directory-content');
+  const directoryList = document.getElementById('concept-list');
+  const directoryToggle = document.getElementById('directory-toggle');
 
   function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, character => ({
@@ -23,7 +28,10 @@
   }
 
   function readState() {
-    const initial = { records: {}, lastLesson: lessons[0].id, fontSize: 18 };
+    const initial = {
+      records: {}, lastLesson: lessons[0].id, fontSize: 18,
+      directory: { scrollTop: 0, expanded: null, query: '' }
+    };
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
       if (!saved || typeof saved !== 'object') return initial;
@@ -33,6 +41,11 @@
       }
       if (lessonById.has(saved.lastLesson)) initial.lastLesson = saved.lastLesson;
       if (Number.isFinite(saved.fontSize)) initial.fontSize = Math.min(26, Math.max(16, Math.round(saved.fontSize)));
+      if (Number.isFinite(saved.directory?.scrollTop)) initial.directory.scrollTop = Math.max(0, saved.directory.scrollTop);
+      if (Array.isArray(saved.directory?.expanded)) {
+        initial.directory.expanded = [...new Set(saved.directory.expanded.filter(id => chapterById.has(id)))];
+      }
+      if (typeof saved.directory?.query === 'string') initial.directory.query = saved.directory.query;
     } catch {
       storageMessage = '上次的练习记录未能读取，已按未练习状态打开。';
     }
@@ -42,6 +55,7 @@
   const state = readState();
   const initialHash = location.hash.slice(1);
   let currentId = lessonById.has(initialHash) ? initialHash : state.lastLesson;
+  state.directory.expanded ??= [lessonById.get(currentId).chapter];
 
   function saveState() {
     try {
@@ -67,7 +81,6 @@
     const completed = lessons.filter(lesson => state.records[lesson.id]).length;
     const needsReview = reviewLessons().length;
     document.getElementById('completed-count').textContent = completed;
-    document.getElementById('practiced-count').textContent = completed;
     document.getElementById('total-count').textContent = lessons.length;
     document.getElementById('review-count').textContent = needsReview;
     document.getElementById('progress-fill').style.width = `${completed / lessons.length * 100}%`;
@@ -80,20 +93,20 @@
   }
 
   function renderDirectory() {
-    const keyword = search.trim().toLocaleLowerCase();
+    const keyword = state.directory.query.trim().toLocaleLowerCase();
+    const scrollTop = state.directory.scrollTop;
     const matches = lessons.filter(lesson => !keyword ||
       `${lesson.title} ${lesson.summary} ${lesson.example}`.toLocaleLowerCase().includes(keyword)
     );
     document.getElementById('directory-count').textContent = keyword ? `${matches.length} / ${lessons.length}` : `${lessons.length} 个`;
-    const current = lessonById.get(currentId);
-    document.getElementById('concept-list').innerHTML = bank.chapters.map(chapter => {
+    directoryList.innerHTML = bank.chapters.map(chapter => {
       const items = matches.filter(lesson => lesson.chapter === chapter.id);
       if (!items.length) return '';
       const chapterLessons = lessons.filter(lesson => lesson.chapter === chapter.id);
       const practiced = chapterLessons.filter(lesson => state.records[lesson.id]).length;
-      const open = keyword || current.chapter === chapter.id;
-      return `<details class="chapter" ${open ? 'open' : ''}>
-        <summary>${escapeHtml(chapter.title)}<small>${practiced}/${chapterLessons.length}</small></summary>
+      const open = keyword || state.directory.expanded.includes(chapter.id);
+      return `<details class="chapter" data-chapter="${chapter.id}" ${open ? 'open' : ''}>
+        <summary><span class="chapter-name">${escapeHtml(chapter.title)}</span><small>${practiced}/${chapterLessons.length}</small></summary>
         ${items.map(lesson => {
           const record = state.records[lesson.id];
           const status = !record ? '未练习' : correctCount(lesson) === 2 ? '两题答对' : '待巩固';
@@ -109,6 +122,7 @@
         }).join('')}
       </details>`;
     }).join('') || '<p class="search-empty">没有找到这个概念。试试更短的关键词，或清空搜索。</p>';
+    directoryList.scrollTop = scrollTop;
   }
 
   function renderQuestion(lesson, question, questionIndex, answers, submitted) {
@@ -154,7 +168,6 @@
     const next = lessons[lesson.index + 1];
     const chapter = chapterById.get(lesson.chapter);
     document.title = `${lesson.title} · 投资概念复习册`;
-    document.getElementById('mobile-position').textContent = `${String(lesson.index + 1).padStart(2, '0')} / ${lessons.length}`;
     document.getElementById('lesson-panel').innerHTML = `
       <div class="lesson-meta"><span class="lesson-position">第 ${String(lesson.index + 1).padStart(2, '0')} / ${lessons.length} 个概念</span><span>${escapeHtml(chapter.title)}</span></div>
       <h2 class="lesson-title" id="lesson-title" tabindex="-1">${escapeHtml(lesson.title)}</h2>
@@ -188,11 +201,38 @@
     document.getElementById('font-larger').disabled = state.fontSize >= 26;
   }
 
-  function closeDirectory() {
-    document.getElementById('workspace').classList.remove('directory-open');
-    const toggle = document.getElementById('directory-toggle');
-    toggle.setAttribute('aria-expanded', 'false');
-    toggle.innerHTML = `<span aria-hidden="true">☰</span> 打开概念目录 <span id="mobile-position">${String(lessonById.get(currentId).index + 1).padStart(2, '0')} / ${lessons.length}</span>`;
+  function rememberDirectoryPosition() {
+    if (!directoryContent.inert) state.directory.scrollTop = directoryList.scrollTop;
+  }
+
+  function setDirectoryOpen(open, returnFocus = false) {
+    rememberDirectoryPosition();
+    open = mobileLayout.matches && open;
+    document.documentElement.classList.toggle('directory-open', open);
+    directoryToggle.setAttribute('aria-expanded', String(open));
+    directoryToggle.setAttribute('aria-label', open ? '收起概念目录' : '展开概念目录');
+    directoryToggle.innerHTML = open ? '<span aria-hidden="true">‹</span><span>收起</span>' : '<span aria-hidden="true">☰</span><span>目录</span>';
+    directoryContent.inert = mobileLayout.matches && !open;
+    document.getElementById('directory-backdrop').hidden = !open;
+    for (const element of document.querySelectorAll('.site-header, .lesson-panel, .page-footer, .skip-link')) {
+      element.inert = open;
+    }
+    if (open) {
+      sidebar.setAttribute('role', 'dialog');
+      sidebar.setAttribute('aria-modal', 'true');
+      directoryContent.focus({ preventScroll: true });
+      directoryList.scrollTop = state.directory.scrollTop;
+    } else {
+      sidebar.removeAttribute('role');
+      sidebar.removeAttribute('aria-modal');
+      if (returnFocus && mobileLayout.matches) directoryToggle.focus({ preventScroll: true });
+    }
+    clearTimeout(directorySaveTimer);
+    saveState();
+  }
+
+  function closeDirectory(returnFocus = false) {
+    setDirectoryOpen(false, returnFocus);
   }
 
   function goToLesson(id, clearSearch = false) {
@@ -200,7 +240,7 @@
     currentId = id;
     state.lastLesson = id;
     if (clearSearch) {
-      search = '';
+      state.directory.query = '';
       document.getElementById('concept-search').value = '';
     }
     if (location.hash !== `#${id}`) history.pushState(null, '', `#${id}`);
@@ -214,9 +254,29 @@
   }
 
   document.getElementById('concept-search').addEventListener('input', event => {
-    search = event.target.value;
+    state.directory.query = event.target.value;
+    state.directory.scrollTop = 0;
     renderDirectory();
+    saveState();
   });
+
+  directoryList.addEventListener('scroll', () => {
+    rememberDirectoryPosition();
+    clearTimeout(directorySaveTimer);
+    directorySaveTimer = setTimeout(saveState, 150);
+  }, { passive: true });
+
+  directoryList.addEventListener('toggle', event => {
+    const chapter = event.target;
+    if (!chapter.matches('details[data-chapter]') || state.directory.query.trim()) return;
+    const expanded = new Set(state.directory.expanded);
+    if (expanded.has(chapter.dataset.chapter) === chapter.open) return;
+    if (chapter.open) expanded.add(chapter.dataset.chapter);
+    else expanded.delete(chapter.dataset.chapter);
+    state.directory.expanded = [...expanded];
+    rememberDirectoryPosition();
+    saveState();
+  }, true);
 
   document.getElementById('concept-list').addEventListener('click', event => {
     const button = event.target.closest('[data-lesson]');
@@ -245,7 +305,6 @@
     renderDirectory();
     renderLesson();
     const result = document.getElementById('result-summary');
-    result.style.scrollMarginTop = '105px';
     result.focus({ preventScroll: true });
     result.scrollIntoView({ block: 'start' });
   });
@@ -282,12 +341,43 @@
   }
 
   document.getElementById('directory-toggle').addEventListener('click', () => {
-    const isOpen = document.getElementById('workspace').classList.toggle('directory-open');
-    const toggle = document.getElementById('directory-toggle');
-    toggle.setAttribute('aria-expanded', String(isOpen));
-    toggle.innerHTML = isOpen ? '<span aria-hidden="true">←</span> 返回概念学习' : `<span aria-hidden="true">☰</span> 打开概念目录 <span id="mobile-position">${String(lessonById.get(currentId).index + 1).padStart(2, '0')} / ${lessons.length}</span>`;
-    if (isOpen) document.getElementById('concept-search').focus({ preventScroll: true });
+    setDirectoryOpen(directoryToggle.getAttribute('aria-expanded') !== 'true');
   });
+
+  document.getElementById('directory-backdrop').addEventListener('click', () => closeDirectory(true));
+  document.addEventListener('keydown', event => {
+    if (directoryToggle.getAttribute('aria-expanded') !== 'true') return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeDirectory(true);
+    } else if (event.key === 'Tab') {
+      const controls = [...sidebar.querySelectorAll('button:not([disabled]), input, summary')]
+        .filter(element => !element.closest('[inert]') && element.getClientRects().length);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === directoryContent)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  });
+
+  mobileLayout.addEventListener('change', () => closeDirectory());
+  window.addEventListener('pagehide', () => {
+    rememberDirectoryPosition();
+    clearTimeout(directorySaveTimer);
+    saveState();
+  });
+
+  function updateHeaderHeight() {
+    const height = Math.ceil(document.querySelector('.site-header').getBoundingClientRect().height);
+    document.documentElement.style.setProperty('--header-height', `${height}px`);
+  }
+  const headerObserver = new ResizeObserver(updateHeaderHeight);
+  headerObserver.observe(document.querySelector('.site-header'));
 
   window.addEventListener('hashchange', () => {
     const id = location.hash.slice(1);
@@ -296,8 +386,11 @@
 
   state.lastLesson = currentId;
   applyFontSize();
+  updateHeaderHeight();
+  document.getElementById('concept-search').value = state.directory.query;
   renderProgress();
   renderDirectory();
   renderLesson();
+  directoryContent.inert = mobileLayout.matches;
   document.getElementById('storage-status').textContent = storageMessage;
 })();
