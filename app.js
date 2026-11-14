@@ -243,7 +243,6 @@
     }
     if (location.hash !== `#${id}`) history.pushState(null, '', `#${id}`);
     closeDirectory();
-    saveState();
     renderDirectory();
     renderLesson();
     const title = document.getElementById('lesson-title');
