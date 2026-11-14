@@ -56,6 +56,7 @@
   const state = readState();
   const initialHash = location.hash.slice(1);
   let currentId = lessonById.has(initialHash) ? initialHash : state.lastLesson;
+  if (!lessonById.has(initialHash)) history.replaceState(null, '', `#${currentId}`);
   state.directory.expanded ??= [lessonById.get(currentId).chapter];
 
   function saveState() {
@@ -126,7 +127,7 @@
     directoryList.scrollTop = scrollTop;
   }
 
-  function renderQuestion(lesson, question, questionIndex, answers, submitted) {
+  function renderQuestion(question, questionIndex, answers, submitted, firstWrong) {
     const selected = answers[questionIndex];
     const correct = selected === question.answer;
     const choices = question.options.map((option, index) => {
@@ -141,22 +142,15 @@
       </label>`;
     }).join('');
     const feedback = submitted ? `<section class="feedback ${correct ? '' : 'wrong'}" aria-label="第 ${questionIndex + 1} 题解析">
-      <strong>${correct ? '答对了' : '这题再想一想'}</strong>
+      <strong>${correct ? '回答正确' : '回答有误'}</strong>
       <p class="reference-answer">参考答案 ${String.fromCharCode(65 + question.answer)} · ${escapeHtml(question.options[question.answer])}</p>
       <p>${escapeHtml(question.explanation)}</p>
+      ${firstWrong ? '<button class="text-button" type="button" data-action="retry">重新做两题</button>' : ''}
     </section>` : '';
-    return `<fieldset class="question"><legend><span class="question-number" aria-hidden="true">${questionIndex + 1}</span>${escapeHtml(question.prompt)}</legend>
-      <div class="options">${choices}</div>${feedback}</fieldset>`;
-  }
-
-  function renderResult(lesson) {
-    const correct = correctCount(lesson);
-    const heading = correct === 2 ? '两道都答对了。' : `这次答对 ${correct} 题，我们再看看解析。`;
-    const description = correct === 2 ? '这个概念的两题已完成，可以继续学习。' : '已把这个概念记为“待巩固”，可以重读上面的讲解后再练一次。';
-    return `<div class="result-summary ${correct < 2 ? 'needs-review' : ''}" id="result-summary" tabindex="-1">
-      <div><strong>${heading}</strong><p>${description}</p></div>
-      <button class="text-button" type="button" data-action="retry">重新做这两题</button>
-    </div>`;
+    return `<div class="question ${submitted && !correct ? 'needs-review' : ''}" data-question-index="${questionIndex}" tabindex="-1">
+      <fieldset class="question-fields"><legend><span class="question-number" aria-hidden="true">${questionIndex + 1}</span>${escapeHtml(question.prompt)}</legend>
+        <div class="options">${choices}</div>
+      </fieldset>${feedback}</div>`;
   }
 
   function renderLesson() {
@@ -165,6 +159,7 @@
     const submitted = Boolean(record && !drafts.has(currentId));
     const answers = submitted ? record.answers : drafts.get(currentId) || [null, null];
     const answered = answers.filter(Number.isInteger).length;
+    const firstWrongIndex = submitted ? lesson.questions.findIndex((question, index) => question.answer !== answers[index]) : -1;
     const previous = lessons[lesson.index - 1];
     const next = lessons[lesson.index + 1];
     const chapter = chapterById.get(lesson.chapter);
@@ -172,26 +167,24 @@
     document.getElementById('lesson-panel').innerHTML = `
       <div class="lesson-meta"><span class="lesson-position">第 ${String(lesson.index + 1).padStart(2, '0')} / ${lessons.length} 个概念</span><span>${escapeHtml(chapter.title)}</span></div>
       <h2 class="lesson-title" id="lesson-title" tabindex="-1">${escapeHtml(lesson.title)}</h2>
-      <p class="section-label"><span aria-hidden="true"></span>先理解这个概念</p>
       <p class="concept-explanation">${escapeHtml(lesson.summary)}</p>
       <section class="example-box" aria-label="简单例子">
-        <div class="example-label"><svg viewBox="0 0 20 24" aria-hidden="true"><path d="M5 11h10L10 23 5 11ZM4 10a4 4 0 0 1 3-7 3 3 0 0 1 6 0 4 4 0 0 1 3 7H4ZM7 11l5 7M13 11l-5 7"/></svg>用小例子想一想</div>
+        <div class="example-label">教学示例</div>
         <p>${escapeHtml(lesson.example)}</p>
       </section>
       <section class="exercise-heading" aria-labelledby="exercise-title">
-        <h3 id="exercise-title">现在，试试两道题</h3>
-        <p id="exercise-instructions">${submitted ? '这是你上次提交的结果。可以查看解析，或重新做这两题。' : '选好两题再提交。答案和解析会在提交后显示。'}</p>
+        <h3 id="exercise-title">练习</h3>
       </section>
-      ${submitted ? renderResult(lesson) : ''}
-      <form id="exercise-form" aria-describedby="exercise-instructions">
-        ${lesson.questions.map((question, index) => renderQuestion(lesson, question, index, answers, submitted)).join('')}
+      <form id="exercise-form" aria-labelledby="exercise-title">
+        ${lesson.questions.map((question, index) => renderQuestion(question, index, answers, submitted, index === firstWrongIndex)).join('')}
         ${submitted ? '' : `<div class="submit-row"><button class="primary-button" id="submit-answers" type="submit" ${answered === 2 ? '' : 'disabled'}>提交这两题</button><span class="selection-status" id="selection-status" aria-live="polite">已选 ${answered} / 2 题</span></div>`}
       </form>
+      ${submitted && firstWrongIndex < 0 ? '<button class="text-button" type="button" data-action="retry">重新练习</button>' : ''}
+      ${!next && submitted && firstWrongIndex < 0 ? '<p class="lesson-complete" id="lesson-complete" tabindex="-1" role="status">已完成最后一个概念。</p>' : ''}
       <nav class="lesson-nav" aria-label="按顺序学习概念">
-        <button type="button" data-action="previous" ${previous ? '' : 'disabled'}><span>← 上一个概念</span><strong>${previous ? escapeHtml(previous.title) : '这是第一个概念'}</strong></button>
-        <button type="button" data-action="next" ${next ? '' : 'disabled'}><span>下一个概念 →</span><strong>${next ? escapeHtml(next.title) : '这是最后一个概念'}</strong></button>
+        <button type="button" data-action="previous" ${previous ? '' : 'disabled'}><span>← 上一页</span><strong>${previous ? escapeHtml(previous.title) : ''}</strong></button>
+        <button type="button" data-action="next" ${next ? '' : 'disabled'}><span>下一页 →</span><strong>${next ? escapeHtml(next.title) : ''}</strong></button>
       </nav>
-      ${next ? '' : '<p class="lesson-finished">已到最后一个概念。还可以回目录，复习需要巩固的地方。</p>'}
     `;
   }
 
@@ -223,7 +216,7 @@
     directoryToggle.setAttribute('aria-label', open ? '收起概念目录' : '展开概念目录');
     directoryContent.inert = mobileLayout.matches && !open;
     document.getElementById('directory-backdrop').hidden = !open;
-    for (const element of document.querySelectorAll('.brand, .font-tools, #review-needed, .lesson-panel, .page-footer, .skip-link')) {
+    for (const element of document.querySelectorAll('.brand, .font-tools, #review-needed, .lesson-panel, .skip-link')) {
       element.inert = open;
     }
     if (open) {
@@ -307,11 +300,17 @@
     drafts.delete(currentId);
     saveState();
     renderProgress();
+    const firstWrongIndex = lesson.questions.findIndex((question, index) => question.answer !== answers[index]);
+    const next = lessons[lesson.index + 1];
+    if (firstWrongIndex < 0 && next) {
+      goToLesson(next.id, true);
+      return;
+    }
     renderDirectory();
     renderLesson();
-    const result = document.getElementById('result-summary');
-    result.focus({ preventScroll: true });
-    result.scrollIntoView({ block: 'start' });
+    const target = firstWrongIndex >= 0 ? document.querySelector(`[data-question-index="${firstWrongIndex}"]`) : document.getElementById('lesson-complete');
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: 'start' });
   });
 
   document.getElementById('lesson-panel').addEventListener('click', event => {
@@ -321,7 +320,9 @@
     if (button.dataset.action === 'retry') {
       drafts.set(currentId, [null, null]);
       renderLesson();
-      document.querySelector('input[name="question-0"]').focus();
+      const firstQuestion = document.querySelector('.question');
+      firstQuestion.focus({ preventScroll: true });
+      firstQuestion.scrollIntoView({ block: 'start' });
     } else if (button.dataset.action === 'previous') {
       goToLesson(lessons[index - 1].id, true);
     } else if (button.dataset.action === 'next') {
