@@ -97,6 +97,8 @@
     const track = document.getElementById('progress-track');
     track.setAttribute('aria-valuemax', lessons.length);
     track.setAttribute('aria-valuenow', completed);
+    const progressLesson = getProgressLesson();
+    document.getElementById('progress-resume').setAttribute('aria-label', `已练习 ${completed} / ${lessons.length} 个概念，回到当前学习进度：${progressLesson.title}`);
     const reviewButton = document.getElementById('review-needed');
     reviewButton.disabled = needsReview === 0;
     reviewButton.setAttribute('aria-label', `复习待巩固概念，共 ${needsReview} 个`);
@@ -198,7 +200,7 @@
       </section>
       <form id="exercise-form" aria-labelledby="exercise-title">
         ${lesson.questions.map((question, index) => renderQuestion(question, index, answers, submitted, index === firstWrongIndex)).join('')}
-        ${submitted ? '' : `<div class="submit-row"><button class="primary-button" id="submit-answers" type="submit" ${answered === 2 ? '' : 'disabled'}>提交这两题</button><span class="selection-status" id="selection-status" aria-live="polite">已选 ${answered} / 2 题</span></div>`}
+        ${submitted ? '' : `<div class="submit-row"><span class="selection-status" id="selection-status" aria-live="polite">已选 ${answered} / 2 题</span><button class="primary-button" id="submit-answers" type="submit" ${answered === 2 ? '' : 'disabled'}>提交</button></div>`}
       </form>
       ${submitted && firstWrongIndex < 0 ? '<button class="text-button" type="button" data-action="retry">重新练习</button>' : ''}
       ${!next && submitted && firstWrongIndex < 0 ? '<p class="lesson-complete" id="lesson-complete" tabindex="-1" role="status">已完成最后一个概念。</p>' : ''}
@@ -350,6 +352,10 @@
     }
   });
 
+  document.getElementById('progress-resume').addEventListener('click', () => {
+    goToLesson(getProgressLesson().id, true);
+  });
+
   document.getElementById('review-needed').addEventListener('click', () => {
     const pending = reviewLessons();
     if (!pending.length) return;
@@ -377,7 +383,7 @@
       event.preventDefault();
       closeDirectory(true);
     } else if (event.key === 'Tab') {
-      const controls = [directoryToggle, ...sidebar.querySelectorAll('button:not([disabled]), input, summary')]
+      const controls = [directoryToggle, document.getElementById('progress-resume'), ...sidebar.querySelectorAll('button:not([disabled]), input, summary')]
         .filter(element => !element.closest('[inert]') && element.getClientRects().length);
       const first = controls[0];
       const last = controls[controls.length - 1];

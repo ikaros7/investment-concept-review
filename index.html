@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#205d50">
   <meta name="description" content="依据本对话整理的投资概念复习册。每次一个概念，先看讲解和简单例子，再做两道题，提交后查看解析。">
   <title>投资概念复习册</title>
-  <link rel="stylesheet" href="./style.css?v=20261115-progress">
+  <link rel="stylesheet" href="./style.css?v=20261115-submit">
   <script defer src="./bank.js"></script>
-  <script defer src="./app.js?v=20261115-progress"></script>
+  <script defer src="./app.js?v=20261115-submit"></script>
 </head>
 <body>
   <a class="skip-link" href="#lesson-panel">跳到概念讲解</a>
@@ -28,8 +28,10 @@
     <section class="progress-bar" aria-label="复习进度">
       <div class="progress-inner">
         <button id="directory-toggle" class="directory-toggle" type="button" aria-controls="directory-content" aria-expanded="false" aria-label="展开概念目录"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-        <span class="progress-count"><span class="progress-label">复习 </span><b id="completed-count">0</b> / <span id="total-count">77</span></span>
-        <div id="progress-track" class="progress-track" role="progressbar" aria-label="已练习概念" aria-valuemin="0" aria-valuemax="77" aria-valuenow="0"><span id="progress-fill"></span></div>
+        <button id="progress-resume" class="progress-resume" type="button" aria-label="回到当前学习进度">
+          <span class="progress-count"><span class="progress-label">复习 </span><b id="completed-count">0</b> / <span id="total-count">77</span></span>
+          <span id="progress-track" class="progress-track" role="progressbar" aria-label="已练习概念" aria-valuemin="0" aria-valuemax="77" aria-valuenow="0"><span id="progress-fill"></span></span>
+        </button>
         <button id="review-needed" type="button" disabled>待巩固 <b id="review-count">0</b></button>
       </div>
       </section>
