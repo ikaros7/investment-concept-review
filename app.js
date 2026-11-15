@@ -93,7 +93,7 @@
     document.getElementById('completed-count').textContent = completed;
     document.getElementById('total-count').textContent = lessons.length;
     document.getElementById('review-count').textContent = needsReview;
-    document.getElementById('progress-fill').style.width = `${completed / lessons.length * 100}%`;
+    document.getElementById('progress-fill').style.transform = `scaleX(${completed / lessons.length})`;
     const track = document.getElementById('progress-track');
     track.setAttribute('aria-valuemax', lessons.length);
     track.setAttribute('aria-valuenow', completed);
@@ -188,6 +188,7 @@
     const chapter = chapterById.get(lesson.chapter);
     document.title = `${lesson.title} · 投资概念复习册`;
     document.getElementById('lesson-panel').innerHTML = `
+      <div class="lesson-content">
       <div class="lesson-meta"><span class="lesson-position">第 ${String(lesson.index + 1).padStart(2, '0')} / ${lessons.length} 个概念</span><span>${escapeHtml(chapter.title)}</span></div>
       <h2 class="lesson-title" id="lesson-title" tabindex="-1">${escapeHtml(lesson.title)}</h2>
       <p class="concept-explanation">${escapeHtml(lesson.summary)}</p>
@@ -204,6 +205,7 @@
       </form>
       ${submitted && firstWrongIndex < 0 ? '<button class="text-button" type="button" data-action="retry">重新练习</button>' : ''}
       ${!next && submitted && firstWrongIndex < 0 ? '<p class="lesson-complete" id="lesson-complete" tabindex="-1" role="status">已完成最后一个概念。</p>' : ''}
+      </div>
       <nav class="lesson-nav" aria-label="按顺序学习概念">
         <button type="button" data-action="previous" ${previous ? '' : 'disabled'}><span>← 上一页</span><strong>${previous ? escapeHtml(previous.title) : ''}</strong></button>
         <button type="button" data-action="next" ${next ? '' : 'disabled'}><span>下一页 →</span><strong>${next ? escapeHtml(next.title) : ''}</strong></button>

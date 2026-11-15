@@ -26,13 +26,13 @@ button { color: inherit; }
 .skip-link { position: fixed; top: -90px; left: 20px; z-index: 100; padding: 10px 20px; background: white; border: 2px solid var(--green); }
 .skip-link:focus { top: 8px; }
 .site-header { position: sticky; top: 0; z-index: 50; background: var(--paper); border-bottom: 1px solid var(--line); }
-.header-inner { max-width: 1260px; margin: 0 auto; padding: 17px 32px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.header-inner { max-width: 1260px; margin: 0 auto; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
 .brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; }
 .brand-mark { background: var(--green); border-radius: 12px; color: white; padding: 8px; display: flex; }
 .brand-mark svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .brand strong { display: block; font-size: 18px; letter-spacing: .03em; color: var(--ink); }
 .font-tools { display: flex; align-items: center; gap: 8px; }
-.font-tools > span { font-size: 12px; color: var(--muted); margin-right: 5px; }
+.font-tools > span { font-size: 12px; color: var(--muted); margin-right: 4px; }
 .font-tools button { background: white; border: 1px solid var(--line); border-radius: 7px; min-width: 44px; min-height: 44px; font-size: 14px; flex-shrink: 0; }
 .font-tools output { min-width: 20px; text-align: center; font-size: 12px; color: var(--muted); }
 .page-shell { max-width: 1260px; margin: 0 auto; padding: 20px 32px 36px; }
@@ -45,8 +45,8 @@ button { color: inherit; }
 .progress-inner > .progress-resume { display: flex; flex: 1; align-items: center; gap: 16px; min-width: 0; color: var(--ink); border-radius: 6px; }
 .progress-resume:hover { background: #e8eee3; }
 .progress-track { height: 5px; border-radius: 6px; background: #dce3d3; overflow: hidden; }
-.progress-track > span { display: block; width: 0; height: 100%; background: var(--green); border-radius: 6px; transition: width .2s; }
-.workspace { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 25px; align-items: start; }
+.progress-track > span { display: block; width: 100%; height: 100%; background: var(--green); border-radius: 6px; transform: scaleX(0); transform-origin: left center; transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1); }
+.workspace { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 24px; align-items: start; }
 .concept-sidebar { position: sticky; top: calc(var(--header-height) + 20px); height: calc(100vh - var(--header-height) - var(--bottom-nav-height) - 40px); height: calc(100dvh - var(--header-height) - var(--bottom-nav-height) - 40px); min-height: 0; }
 .directory-content { display: flex; flex-direction: column; height: 100%; background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .directory-content:focus { outline: none; }
@@ -82,24 +82,24 @@ button { color: inherit; }
 .directory-note { border-top: 1px solid #eef0e9; margin: 0; padding: 12px 16px; color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
 .directory-note .review { margin-left: 8px; }
 .search-empty { font-size: 13px; padding: 20px; color: var(--muted); }
-.lesson-panel { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 33px 36px 27px; min-width: 0; scroll-margin-top: calc(var(--header-height) + 16px); }
-.lesson-meta { display: flex; align-items: center; justify-content: space-between; gap: 15px; color: var(--muted); font-size: 12px; }
-.lesson-position { background: #f1f4ec; color: var(--green); border-radius: 5px; padding: 3px 9px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.lesson-title { margin: 22px 0 25px; font-size: clamp(26px, 2.8vw, 34px); line-height: 1.5; font-weight: 650; letter-spacing: .01em; outline: none; overflow-wrap: anywhere; }
-.concept-explanation { margin: 0 0 22px; font-size: var(--reading-size); line-height: 1.95; overflow-wrap: anywhere; }
-.example-box { padding: 21px 23px; background: #f9f5e9; border: 1px solid #eee7d5; border-radius: 10px; margin-bottom: 32px; }
+.lesson-panel { background: white; border: 1px solid var(--line); border-radius: 16px; padding: 32px; min-width: 0; scroll-margin-top: calc(var(--header-height) + 16px); }
+.lesson-content { max-width: 720px; margin-inline: auto; }
+.lesson-meta { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--muted); font-size: 12px; }
+.lesson-position { background: #f1f4ec; color: var(--green); border-radius: 5px; padding: 4px 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lesson-title { margin: 24px 0; font-size: clamp(26px, 2.8vw, 34px); line-height: 1.5; font-weight: 650; letter-spacing: .01em; outline: none; overflow-wrap: anywhere; }
+.concept-explanation { margin: 0 0 24px; font-size: var(--reading-size); line-height: 1.95; overflow-wrap: anywhere; }
+.example-box { padding: 24px; background: #f9f5e9; border: 1px solid #eee7d5; border-radius: 10px; margin-bottom: 32px; }
 .example-label { font-size: 12px; color: #84764e; display: flex; gap: 7px; align-items: center; margin-bottom: 8px; font-weight: 600; }
 .example-box p { margin: 0; font-size: var(--reading-size); line-height: 1.95; color: #605a45; overflow-wrap: anywhere; }
-.exercise-heading { border-top: 1px solid var(--line); padding-top: 27px; }
-.exercise-heading h3 { font-size: 19px; margin: 0 0 21px; }
-.question { border: 0; padding: 0; margin: 0 0 27px; width: 100%; min-width: 0; scroll-margin-top: calc(var(--header-height) + 16px); }
-.question.needs-review { border-radius: 10px; box-shadow: 0 0 0 1px #e4bb9d; padding: 16px; background: #fff9f3; }
+.exercise-heading { border-top: 1px solid var(--line); padding-top: 24px; }
+.exercise-heading h3 { font-size: 19px; margin: 0 0 24px; }
+.question { border: 0; padding: 0; margin: 0 0 32px; width: 100%; min-width: 0; scroll-margin-top: calc(var(--header-height) + 16px); }
 .question:focus { outline: none; }
 .question-fields { border: 0; padding: 0; margin: 0; width: 100%; min-width: 0; }
-.question legend { width: 100%; display: table; margin-bottom: 13px; padding: 0; font-size: var(--reading-size); line-height: 1.85; font-weight: 600; }
+.question legend { width: 100%; display: table; margin-bottom: 12px; padding: 0; font-size: var(--reading-size); line-height: 1.85; font-weight: 600; }
 .question-number { display: inline-flex; font-size: 12px; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: #edf2e9; color: var(--green); margin-right: 8px; vertical-align: 2px; }
 .options { display: grid; gap: 8px; }
-.option { display: flex; align-items: center; gap: 12px; cursor: pointer; position: relative; padding: 12px 14px; min-height: 49px; border: 1px solid #e3e8df; border-radius: 8px; font-size: var(--reading-size); line-height: 1.6; overflow-wrap: anywhere; }
+.option { display: flex; align-items: center; gap: 12px; cursor: pointer; position: relative; padding: 12px 16px; min-height: 49px; border: 1px solid #e3e8df; border-radius: 8px; font-size: var(--reading-size); line-height: 1.6; overflow-wrap: anywhere; }
 .option:hover { border-color: #a7bdac; background: #fafcf8; }
 .option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .option:focus-within { outline: 3px solid #9abbab; outline-offset: 2px; }
@@ -112,17 +112,17 @@ button { color: inherit; }
 .option.locked { cursor: default; }
 .option-mark { margin-left: auto; color: var(--green); font-size: 14px; flex-shrink: 0; }
 .option.incorrect .option-mark { color: #a45f4c; }
-.feedback { margin-top: 12px; padding: 16px 18px; border-radius: 8px; background: #f0f6ee; border-left: 3px solid #82aa8d; }
+.feedback { margin-top: 12px; padding: 16px; border-radius: 8px; background: #f0f6ee; border-left: 3px solid #82aa8d; }
 .feedback.wrong { background: #fcf4eb; border-left-color: #c5a171; }
 .feedback strong { display: block; font-size: 13px; margin-bottom: 4px; color: var(--green); }
 .feedback.wrong strong { color: #8c6433; }
 .feedback p { margin: 0; font-size: var(--reading-size); line-height: 1.9; }
-.feedback .reference-answer { font-size: 13px; margin-bottom: 5px; color: var(--muted); }
-.submit-row { display: flex; justify-content: space-between; gap: 15px; align-items: center; margin-top: 3px; }
+.feedback .reference-answer { font-size: 13px; margin-bottom: 4px; color: var(--muted); }
+.submit-row { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
 .primary-button { background: var(--green); color: white; border: 1px solid var(--green); padding: 12px 28px; border-radius: 8px; font-size: 18px; font-weight: 600; min-width: 140px; min-height: 56px; flex-shrink: 0; }
 .primary-button:hover:not(:disabled) { background: var(--green-dark); }
 .selection-status { font-size: 12px; color: var(--muted); }
-.text-button { border: 0; background: transparent; color: var(--green); padding: 6px 0; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; flex-shrink: 0; }
+.text-button { border: 0; background: transparent; color: var(--green); padding: 8px 0; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; flex-shrink: 0; }
 .lesson-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; border-top: 1px solid var(--line); background: white; box-shadow: 0 -3px 16px #203a3508; padding: 12px max(16px, calc((100vw - 1196px) / 2)) calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .lesson-nav button { border: 1px solid var(--line); border-radius: 9px; background: #f3f6ef; text-align: center; padding: 7px 14px; min-width: 0; min-height: 56px; }
 .lesson-nav button:hover:not(:disabled) { border-color: #a9beac; }
@@ -136,23 +136,23 @@ button { color: inherit; }
 .directory-backdrop { display: none; }
 .noscript { padding: 30px; }
 @media (max-width: 960px) {
-  .workspace { grid-template-columns: 290px minmax(0, 1fr); gap: 18px; }
-  .lesson-panel { padding: 27px 24px; }
-  .page-shell { padding-left: 22px; padding-right: 22px; }
-  .header-inner { padding-left: 22px; padding-right: 22px; }
-  .progress-inner { padding-left: 22px; padding-right: 22px; }
+  .workspace { grid-template-columns: 290px minmax(0, 1fr); gap: 16px; }
+  .lesson-panel { padding: 24px; }
+  .page-shell { padding-left: 24px; padding-right: 24px; }
+  .header-inner { padding-left: 24px; padding-right: 24px; }
+  .progress-inner { padding-left: 24px; padding-right: 24px; }
 }
 @media (max-width: 720px) {
   body { padding-top: var(--header-height); }
   .site-header { position: fixed; top: 0; left: 0; right: 0; }
-  .header-inner { padding: 8px 16px; gap: 10px; min-height: 56px; }
+  .header-inner { padding: 8px 16px; gap: 8px; min-height: 56px; }
   .brand { gap: 8px; }
   .brand strong { font-size: 14px; letter-spacing: 0; }
   .brand-mark { padding: 6px; border-radius: 9px; }
   .brand-mark svg { width: 25px; height: 25px; }
   .font-tools { gap: 4px; }
   .font-tools > span { display: none; }
-  .page-shell { padding: 16px 15px 25px; }
+  .page-shell { padding: 16px 16px 24px; }
   .progress-inner { padding: 0 16px 0 8px; gap: 8px; }
   .progress-inner > .progress-resume { gap: 8px; }
   .progress-label { display: none; }
@@ -165,19 +165,16 @@ button { color: inherit; }
   .directory-open body { position: fixed; left: 0; right: 0; width: 100%; overflow: hidden; }
   .directory-backdrop:not([hidden]) { display: block; position: fixed; top: var(--header-height); right: 0; bottom: 0; left: 0; border: 0; padding: 0; z-index: 55; background: #172b2659; }
   .directory-backdrop[hidden] { display: none; }
-  .lesson-panel { border-radius: 12px; padding: 23px 19px; }
-  .lesson-meta { gap: 10px; }
-  .lesson-title { font-size: 27px; margin: 20px 0 23px; }
+  .lesson-panel { border-radius: 12px; padding: 24px 20px; }
+  .lesson-meta { gap: 12px; }
+  .lesson-title { font-size: 27px; margin: 20px 0 24px; }
   .concept-explanation { line-height: 1.9; }
-  .example-box { padding: 17px; margin-bottom: 26px; }
+  .example-box { padding: 16px; }
   .example-box p { line-height: 1.9; }
-  .exercise-heading { padding-top: 23px; }
   .exercise-heading h3 { font-size: 18px; }
   .question legend { line-height: 1.8; }
-  .option { padding: 11px 12px; gap: 10px; }
-  .feedback { padding: 13px 14px; }
+  .option { padding: 12px; }
   .submit-row { gap: 8px; }
-  .lesson-nav { gap: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
