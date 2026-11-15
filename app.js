@@ -7,6 +7,7 @@
   const chapterById = new Map(bank.chapters.map(chapter => [chapter.id, chapter]));
   const storageKey = 'investment-concept-review-v1';
   const drafts = new Map();
+  const choiceOrders = new Map();
   let storageMessage = '';
   let directorySaveTimer;
   let pageScrollY = 0;
@@ -28,6 +29,33 @@
     );
   }
 
+  function validOptionOrders(lesson, orders) {
+    return Array.isArray(orders) && orders.length === lesson.questions.length && orders.every((order, index) => {
+      const count = lesson.questions[index].options.length;
+      return Array.isArray(order) && order.length === count && new Set(order).size === count &&
+        order.every(option => Number.isInteger(option) && option >= 0 && option < count);
+    });
+  }
+
+  function createOptionOrders(lesson) {
+    return lesson.questions.map(question => {
+      const order = question.options.map((_, index) => index);
+      for (let index = order.length - 1; index > 0; index--) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [order[index], order[swapIndex]] = [order[swapIndex], order[index]];
+      }
+      return order;
+    });
+  }
+
+  function getOptionOrders(lesson, submitted) {
+    if (submitted) {
+      return state.records[lesson.id].optionOrders || lesson.questions.map(question => question.options.map((_, index) => index));
+    }
+    if (!choiceOrders.has(lesson.id)) choiceOrders.set(lesson.id, createOptionOrders(lesson));
+    return choiceOrders.get(lesson.id);
+  }
+
   function readState() {
     const initial = {
       records: {}, lastLesson: lessons[0].id, fontSize: 18,
@@ -38,7 +66,11 @@
       if (!saved || typeof saved !== 'object') return initial;
       for (const lesson of lessons) {
         const answers = saved.records?.[lesson.id]?.answers;
-        if (validAnswers(lesson, answers)) initial.records[lesson.id] = { answers };
+        if (validAnswers(lesson, answers)) {
+          initial.records[lesson.id] = { answers };
+          const orders = saved.records[lesson.id].optionOrders;
+          if (validOptionOrders(lesson, orders)) initial.records[lesson.id].optionOrders = orders.map(order => [...order]);
+        }
       }
       if (lessonById.has(saved.lastLesson)) initial.lastLesson = saved.lastLesson;
       if (Number.isFinite(saved.fontSize)) initial.fontSize = Math.min(26, Math.max(16, Math.round(saved.fontSize)));
@@ -150,23 +182,24 @@
     state.directory.scrollTop = directoryList.scrollTop;
   }
 
-  function renderQuestion(question, questionIndex, answers, submitted, firstWrong) {
+  function renderQuestion(question, questionIndex, answers, submitted, firstWrong, order) {
     const selected = answers[questionIndex];
     const correct = selected === question.answer;
-    const choices = question.options.map((option, index) => {
+    const choices = order.map((index, position) => {
+      const option = question.options[index];
       const isCorrect = submitted && index === question.answer;
       const isWrong = submitted && index === selected && !correct;
       const mark = isCorrect ? '✓' : isWrong ? '×' : '';
       return `<label class="option ${submitted ? 'locked' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}">
         <input type="radio" name="question-${questionIndex}" value="${index}" data-question="${questionIndex}"
           ${selected === index ? 'checked' : ''} ${submitted ? 'disabled' : ''} required>
-        <span class="option-letter" aria-hidden="true">${String.fromCharCode(65 + index)}</span>
+        <span class="option-letter" aria-hidden="true">${String.fromCharCode(65 + position)}</span>
         <span>${escapeHtml(option)}</span>${mark ? `<span class="option-mark" aria-hidden="true">${mark}</span>` : ''}
       </label>`;
     }).join('');
     const feedback = submitted ? `<section class="feedback ${correct ? '' : 'wrong'}" aria-label="第 ${questionIndex + 1} 题解析">
       <strong>${correct ? '回答正确' : '回答有误'}</strong>
-      <p class="reference-answer">参考答案 ${String.fromCharCode(65 + question.answer)} · ${escapeHtml(question.options[question.answer])}</p>
+      <p class="reference-answer">参考答案 ${String.fromCharCode(65 + order.indexOf(question.answer))} · ${escapeHtml(question.options[question.answer])}</p>
       <p>${escapeHtml(question.explanation)}</p>
       ${firstWrong ? '<button class="text-button" type="button" data-action="retry">重新做两题</button>' : ''}
     </section>` : '';
@@ -180,6 +213,7 @@
     const lesson = lessonById.get(currentId);
     const record = state.records[currentId];
     const submitted = Boolean(record && !drafts.has(currentId));
+    const optionOrders = getOptionOrders(lesson, submitted);
     const answers = submitted ? record.answers : drafts.get(currentId) || [null, null];
     const answered = answers.filter(Number.isInteger).length;
     const firstWrongIndex = submitted ? lesson.questions.findIndex((question, index) => question.answer !== answers[index]) : -1;
@@ -200,7 +234,7 @@
         <h3 id="exercise-title">练习</h3>
       </section>
       <form id="exercise-form" aria-labelledby="exercise-title">
-        ${lesson.questions.map((question, index) => renderQuestion(question, index, answers, submitted, index === firstWrongIndex)).join('')}
+        ${lesson.questions.map((question, index) => renderQuestion(question, index, answers, submitted, index === firstWrongIndex, optionOrders[index])).join('')}
         ${submitted ? '' : `<div class="submit-row"><span class="selection-status" id="selection-status" aria-live="polite">已选 ${answered} / 2 题</span><button class="primary-button" id="submit-answers" type="submit" ${answered === 2 ? '' : 'disabled'}>提交</button></div>`}
       </form>
       ${submitted && firstWrongIndex < 0 ? '<button class="text-button" type="button" data-action="retry">重新练习</button>' : ''}
@@ -320,7 +354,7 @@
     const lesson = lessonById.get(currentId);
     const answers = drafts.get(currentId);
     if (!validAnswers(lesson, answers)) return;
-    state.records[currentId] = { answers: [...answers] };
+    state.records[currentId] = { answers: [...answers], optionOrders: getOptionOrders(lesson, false).map(order => [...order]) };
     drafts.delete(currentId);
     saveState();
     renderProgress();
@@ -342,6 +376,7 @@
     if (!button || button.disabled) return;
     const index = lessonById.get(currentId).index;
     if (button.dataset.action === 'retry') {
+      choiceOrders.set(currentId, createOptionOrders(lessons[index]));
       drafts.set(currentId, [null, null]);
       renderLesson();
       const firstQuestion = document.querySelector('.question');
