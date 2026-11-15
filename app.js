@@ -54,9 +54,8 @@
   }
 
   const state = readState();
-  const initialHash = location.hash.slice(1);
-  let currentId = lessonById.has(initialHash) ? initialHash : state.lastLesson;
-  if (!lessonById.has(initialHash)) history.replaceState(null, '', `#${currentId}`);
+  let currentId = getProgressLesson().id;
+  history.replaceState(null, '', `#${currentId}`);
   state.directory.expanded ??= [lessonById.get(currentId).chapter];
 
   function saveState() {
@@ -73,6 +72,15 @@
     const record = state.records[lesson.id];
     if (!record) return 0;
     return lesson.questions.filter((question, index) => question.answer === record.answers[index]).length;
+  }
+
+  function getProgressLesson() {
+    const practiced = lessons.filter(lesson => state.records[lesson.id]);
+    const latest = practiced[practiced.length - 1];
+    if (!latest) return lessons[0];
+    const index = lessonById.get(latest.id).index;
+    const nextIndex = correctCount(latest) === 2 ? index + 1 : index;
+    return lessons[Math.min(nextIndex, lessons.length - 1)];
   }
 
   function reviewLessons() {
@@ -97,6 +105,7 @@
   function renderDirectory() {
     const keyword = state.directory.query.trim().toLocaleLowerCase();
     const scrollTop = state.directory.scrollTop;
+    const progressId = getProgressLesson().id;
     const matches = lessons.filter(lesson => !keyword ||
       `${lesson.title} ${lesson.summary} ${lesson.example}`.toLocaleLowerCase().includes(keyword)
     );
@@ -114,9 +123,9 @@
           const status = !record ? '未练习' : correctCount(lesson) === 2 ? '两题答对' : '待巩固';
           const dotClass = !record ? '' : correctCount(lesson) === 2 ? 'done' : 'review';
           const item = lessonById.get(lesson.id);
-          return `<button type="button" class="concept-item ${lesson.id === currentId ? 'active' : ''}"
+          return `<button type="button" class="concept-item ${lesson.id === currentId ? 'active' : ''} ${lesson.id === progressId ? 'progress-current' : ''}"
             data-lesson="${lesson.id}" ${lesson.id === currentId ? 'aria-current="page"' : ''}
-            aria-label="${item.index + 1}. ${escapeHtml(lesson.title)}，${status}">
+            aria-label="${item.index + 1}. ${escapeHtml(lesson.title)}，${status}${lesson.id === progressId ? '，当前学习进度' : ''}">
             <span class="concept-number">${String(item.index + 1).padStart(2, '0')}</span>
             <span class="concept-name">${escapeHtml(lesson.title)}</span>
             <span class="dot ${dotClass}" title="${status}" aria-hidden="true"></span>
@@ -125,6 +134,18 @@
       </details>`;
     }).join('') || '<p class="search-empty">没有找到这个概念。试试更短的关键词，或清空搜索。</p>';
     directoryList.scrollTop = scrollTop;
+  }
+
+  function locateProgressInDirectory() {
+    const lesson = getProgressLesson();
+    state.directory.query = '';
+    document.getElementById('concept-search').value = '';
+    if (!state.directory.expanded.includes(lesson.chapter)) state.directory.expanded.push(lesson.chapter);
+    renderDirectory();
+    const item = directoryList.querySelector(`[data-lesson="${lesson.id}"]`);
+    const offset = item.getBoundingClientRect().top - directoryList.getBoundingClientRect().top;
+    directoryList.scrollTop += offset - (directoryList.clientHeight - item.offsetHeight) / 2;
+    state.directory.scrollTop = directoryList.scrollTop;
   }
 
   function renderQuestion(question, questionIndex, answers, submitted, firstWrong) {
@@ -220,8 +241,8 @@
       element.inert = open;
     }
     if (open) {
+      locateProgressInDirectory();
       directoryContent.focus({ preventScroll: true });
-      directoryList.scrollTop = state.directory.scrollTop;
     } else {
       if (returnFocus && mobileLayout.matches) directoryToggle.focus({ preventScroll: true });
     }
@@ -392,10 +413,9 @@
   state.lastLesson = currentId;
   applyFontSize();
   updateHeaderHeight();
-  document.getElementById('concept-search').value = state.directory.query;
   renderProgress();
-  renderDirectory();
   renderLesson();
+  locateProgressInDirectory();
   directoryContent.inert = mobileLayout.matches;
   document.getElementById('storage-status').textContent = storageMessage;
 })();

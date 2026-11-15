@@ -71,6 +71,7 @@ button { color: inherit; }
 .concept-item:last-child { margin-bottom: 0; }
 .concept-item:hover { background: #f7f8f3; }
 .concept-item.active { background: #e9f1eb; border-color: #d9e8dc; color: var(--green); font-weight: 600; }
+.concept-item.progress-current:not(.active) { background: #f3f6ef; border-color: #b7cdbb; }
 .concept-number { color: #7d8b7d; font-size: 13px; flex: 0 0 19px; font-variant-numeric: tabular-nums; }
 .concept-name { flex: 1; overflow-wrap: anywhere; }
 .dot { display: inline-block; width: 6px; height: 6px; background: #dce2d8; border-radius: 50%; flex-shrink: 0; }
@@ -122,9 +123,7 @@ button { color: inherit; }
 .text-button { border: 0; background: transparent; color: var(--green); padding: 6px 0; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; flex-shrink: 0; }
 .lesson-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; border-top: 1px solid var(--line); background: white; box-shadow: 0 -3px 16px #203a3508; padding: 12px max(16px, calc((100vw - 1196px) / 2)) calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .lesson-nav button { border: 1px solid var(--line); border-radius: 9px; background: #f3f6ef; text-align: center; padding: 7px 14px; min-width: 0; min-height: 56px; }
-.lesson-nav button:last-child { background: var(--green); border-color: var(--green); color: white; }
 .lesson-nav button:hover:not(:disabled) { border-color: #a9beac; }
-.lesson-nav button:last-child:hover:not(:disabled) { background: var(--green-dark); }
 .lesson-nav span { display: block; font-size: 16px; line-height: 22px; margin-bottom: 2px; }
 .lesson-nav strong { display: block; font-size: 12px; line-height: 16px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lesson-complete { color: var(--green); font-size: 16px; scroll-margin-top: calc(var(--header-height) + 16px); }
