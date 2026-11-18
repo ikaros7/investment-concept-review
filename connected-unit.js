@@ -49,7 +49,7 @@
   const correct = (q, a) => Boolean(a?.submittedAt && count(q, a) === q.parts.length && a.relation === q.relation.answer);
   const defaultConfig = { id, title, version, storageKey, conditions, source, questions, number: 10 };
 
-  window.createConnectedUnit = ({ panel, onChange, onExit, onPrevious, config = defaultConfig, nextLabel = '概念复习' }) => {
+  window.createConnectedUnit = ({ panel, onChange, onExit, onPrevious, config = defaultConfig, nextLabel = '概念复习', previousLabel = '上一单元' }) => {
     const { id, title, version, storageKey, conditions, source, questions } = config;
     let storageMessage = '';
     const initial = () => ({ version, active: false, step: 0, attempts: {}, first: {}, history: {} });
@@ -155,7 +155,7 @@
       const names = ['故事与示范', '练习一', '练习二', '回顾'];
       document.title = `${names[state.step]} · ${title} · 投资概念复习册`;
       panel.innerHTML = `<div class="lesson-content connected-unit"><div class="lesson-meta"><span class="lesson-position">第 ${state.step + 1} / 4 步</span><span>${esc(config.meta || '利润·现金流·应收账款')}</span></div>${state.step === 0 ? story() : state.step === 3 ? review() : exercise(questions[state.step - 1])}</div>
-        <nav class="lesson-nav" aria-label="串联单元学习步骤"><button type="button" data-unit-action="previous" ${state.step === 0 && !onPrevious ? 'disabled' : ''}><span>← 上一页</span><strong>${names[state.step - 1] || (onPrevious ? '第10单元' : '')}</strong></button><button type="button" data-unit-action="next"><span>下一页 →</span><strong>${esc(names[state.step + 1] || nextLabel)}</strong></button></nav>`;
+        <nav class="lesson-nav" aria-label="串联单元学习步骤"><button type="button" data-unit-action="previous" ${state.step === 0 && !onPrevious ? 'disabled' : ''}><span>← 上一页</span><strong>${esc(names[state.step - 1] || (onPrevious ? previousLabel : ''))}</strong></button><button type="button" data-unit-action="next"><span>下一页 →</span><strong>${esc(names[state.step + 1] || nextLabel)}</strong></button></nav>`;
     }
     function validateMissing(selector, message) {
       panel.querySelector('#unit-error').textContent = message;

@@ -86,7 +86,8 @@
   }
 
   const state = readState();
-  const units = [undefined, window.CONNECTED_UNIT_11].map((config, index) => window.createConnectedUnit({
+  const unitConfigs = [undefined, window.CONNECTED_UNIT_11, window.CONNECTED_UNIT_12];
+  const units = unitConfigs.map((config, index) => window.createConnectedUnit({
     config,
     panel: document.getElementById('lesson-panel'),
     onChange() {
@@ -94,9 +95,10 @@
       renderDirectory();
       document.getElementById('storage-status').textContent = storageMessages();
     },
-    onExit() { goToLesson(index === 0 ? units[1].id : getProgressLesson().id, true); },
-    onPrevious: index === 1 ? () => goToLesson(units[0].id, true) : undefined,
-    nextLabel: index === 0 ? '第11单元' : '概念复习'
+    onExit() { goToLesson(index < units.length - 1 ? units[index + 1].id : getProgressLesson().id, true); },
+    onPrevious: index > 0 ? () => goToLesson(units[index - 1].id, true) : undefined,
+    previousLabel: index > 0 ? `第${unitConfigs[index - 1]?.number || 10}单元` : '',
+    nextLabel: index < unitConfigs.length - 1 ? `第${unitConfigs[index + 1].number}单元` : '概念复习'
   }));
   const unitById = new Map(units.map(unit => [unit.id, unit]));
   const currentUnit = () => unitById.get(currentId);
