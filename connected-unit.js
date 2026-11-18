@@ -44,6 +44,34 @@
   const esc = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const now = () => new Date().toISOString();
   const emptyAttempt = () => ({ revealed: false, results: {}, confirmedAt: null, relation: null, submittedAt: null, startedAt: now() });
+  const optionFields = q => [...q.parts.map(part => [part.id, part]), ['relation', q.relation]];
+
+  function makeOptionOrders(q, shuffle = false) {
+    return Object.fromEntries(optionFields(q).map(([fieldId, part]) => {
+      const order = part.options.map(option => option.id);
+      if (shuffle) {
+        for (let i = order.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [order[i], order[j]] = [order[j], order[i]];
+        }
+      }
+      return [fieldId, order];
+    }));
+  }
+
+  function restoreOptionOrders(q, savedOrders) {
+    if (!savedOrders || typeof savedOrders !== 'object') return null;
+    // Fall back per field so that one bad order does not reset other fields.
+    const orders = makeOptionOrders(q);
+    for (const [id, optionIds] of Object.entries(orders)) {
+      const order = savedOrders[id];
+      if (Array.isArray(order) && order.length === optionIds.length &&
+          new Set(order).size === order.length && order.every(optionId => optionIds.includes(optionId))) {
+        orders[id] = [...order];
+      }
+    }
+    return orders;
+  }
   const completeResults = (q, a) => q.parts.every(p => p.options.some(o => o.id === a.results[p.id]));
   const count = (q, a) => q.parts.filter(p => a?.results?.[p.id] === p.answer).length;
   const correct = (q, a) => Boolean(a?.submittedAt && count(q, a) === q.parts.length && a.relation === q.relation.answer);
@@ -65,6 +93,8 @@
           if (a && a.results && typeof a.results === 'object') {
             const clean = emptyAttempt();
             clean.revealed = a.revealed === true;
+            const orders = restoreOptionOrders(q, a.optionOrders);
+            if (clean.revealed && orders) clean.optionOrders = orders;
             clean.startedAt = typeof a.startedAt === 'string' ? a.startedAt : clean.startedAt;
             for (const p of q.parts) if (p.options.some(o => o.id === a.results[p.id])) clean.results[p.id] = a.results[p.id];
             if (clean.revealed && completeResults(q, clean) && typeof a.confirmedAt === 'string') clean.confirmedAt = a.confirmedAt;
@@ -117,10 +147,11 @@
         <section class="example-box"><h3>第二天，顾客付清7元</h3><p>当天没有新销售，也没有其他收入、成本或费用。</p><p><strong>利润0元，现金净流入7元，应收账款变成0元。</strong></p><p>收到昨天的货款，不是又赚了一遍。</p></section>
         <p class="concept-explanation">利润看当期生意，现金看实际收付，应收账款看结束时还没收到的货款。</p>${renderConditions()}`;
     }
-    function feedback(p, selected) {
-      const chosen = p.options.find(o => o.id === selected);
-      const answer = p.options.find(o => o.id === p.answer);
-      const letter = String.fromCharCode(65 + p.options.indexOf(answer));
+    function feedback(p, selected, options) {
+      const chosen = options.find(o => o.id === selected);
+      const answerIndex = options.findIndex(o => o.id === p.answer);
+      const answer = options[answerIndex];
+      const letter = String.fromCharCode(65 + answerIndex);
       return `<section class="feedback ${selected === p.answer ? '' : 'wrong'}"><strong>${selected === p.answer ? '回答正确' : '回答有误'}</strong><p class="reference-answer">参考答案 ${letter} · ${esc(answer.text)}</p>${chosen?.feedback ? `<p>${esc(chosen.feedback)}</p>` : ''}${p.explanation ? `<p>${esc(p.explanation)}</p>` : ''}</section>`;
     }
     function field(q, p, a, relation = false) {
@@ -128,11 +159,14 @@
       const submitted = Boolean(a.submittedAt);
       const locked = relation ? submitted : Boolean(a.confirmedAt);
       const name = relation ? 'relation' : p.id;
+      const order = a.optionOrders?.[name];
+      // Attempts from before shuffling keep the order in the question bank.
+      const options = order ? order.map(id => p.options.find(o => o.id === id)) : p.options;
       return `<div class="question unit-field ${submitted && selected !== p.answer ? 'needs-review' : ''}" id="unit-field-${name}" tabindex="-1">
-        <fieldset class="question-fields"><legend>${esc(relation ? p.prompt : p.label)}</legend><div class="options">${p.options.map((o, i) => `<label class="option ${locked ? 'locked' : ''} ${submitted && o.id === p.answer ? 'correct' : ''} ${submitted && selected === o.id && selected !== p.answer ? 'incorrect' : ''}">
+        <fieldset class="question-fields"><legend>${esc(relation ? p.prompt : p.label)}</legend><div class="options">${options.map((o, i) => `<label class="option ${locked ? 'locked' : ''} ${submitted && o.id === p.answer ? 'correct' : ''} ${submitted && selected === o.id && selected !== p.answer ? 'incorrect' : ''}">
           <input type="radio" name="unit-${q.id}-${name}" data-unit-field="${name}" value="${o.id}" ${selected === o.id ? 'checked' : ''} ${locked ? 'disabled' : ''}>
           <span class="option-letter" aria-hidden="true">${String.fromCharCode(65 + i)}</span><span>${esc(o.text)}</span>${submitted && o.id === p.answer ? '<span class="option-mark" aria-hidden="true">✓</span>' : submitted && selected === o.id ? '<span class="option-mark" aria-hidden="true">×</span>' : ''}</label>`).join('')}</div></fieldset>
-        ${submitted ? feedback(p, selected) : ''}</div>`;
+        ${submitted ? feedback(p, selected, options) : ''}</div>`;
     }
     function explanation(q) {
       return `<section class="unit-explanation" aria-label="完整解析"><h3>${q.trace ? '把交易分开看' : '完整解析'}</h3>${q.trace ? `<div class="unit-facts">${q.trace.map(t => `<section><h4>${esc(t.label)}</h4><dl>${(t.metrics || [['当天利润的影响', t.profit], ['现金变化', t.cash], ['应收账款变化', t.ar]]).map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></section>`).join('')}</div>` : ''}${q.explanation.map(p => `<p>${esc(p)}</p>`).join('')}</section>`;
@@ -191,14 +225,22 @@
         const missing = q.parts.find(p => !p.options.some(o => o.id === a.results[p.id]));
         if (missing) return validateMissing(`#unit-field-${missing.id}`, '请选择这一项。');
         a.confirmedAt = now();
-        state.first[q.id] ||= { results: clone(a.results), confirmedAt: a.confirmedAt, relation: null, submittedAt: null, snapshot: { version, unitId: id, conditions, source, question: clone(q), context: config.context || '第一天销售10元、对应材料成本4元并支付，收到3元，期末应收账款7元。' } };
+        const optionOrders = clone(a.optionOrders || makeOptionOrders(q));
+        state.first[q.id] ||= {
+          results: clone(a.results), optionOrders, confirmedAt: a.confirmedAt, relation: null, submittedAt: null,
+          snapshot: { version, unitId: id, conditions, source, question: clone(q), context: config.context || '第一天销售10元、对应材料成本4元并支付，收到3元，期末应收账款7元。' }
+        };
         save(); render(); focusAt('#unit-relation');
       } else if (!a.submittedAt) {
         if (!q.relation.options.some(o => o.id === a.relation)) return validateMissing('#unit-field-relation', '请选择关系解释。');
         a.submittedAt = now();
         const first = state.first[q.id];
         if (!first.submittedAt) { first.relation = a.relation; first.submittedAt = a.submittedAt; }
-        (state.history[q.id] ||= []).push({ ...clone(a), snapshot: clone(first.snapshot) });
+        (state.history[q.id] ||= []).push({
+          ...clone(a),
+          optionOrders: clone(a.optionOrders || makeOptionOrders(q)),
+          snapshot: clone(first.snapshot)
+        });
         save();
         if (correct(q, a)) return move(state.step + 1);
         render(); focusAt('.needs-review');
@@ -213,7 +255,13 @@
       if (action === 'previous') return state.step === 0 && onPrevious ? onPrevious() : move(state.step - 1);
       const q = questions[state.step - 1];
       if (!q) return;
-      if (action === 'reveal') { attempt(q).revealed = true; save(); render(); focusAt('.unit-field'); }
+      if (action === 'reveal') {
+        const a = attempt(q);
+        if (a.revealed) return;
+        a.optionOrders = makeOptionOrders(q, true);
+        a.revealed = true;
+        save(); render(); focusAt('.unit-field');
+      }
       if (action === 'retry') { state.attempts[q.id] = emptyAttempt(); save(); render(); focusAt('#lesson-title'); }
     });
     return {
