@@ -45,10 +45,12 @@
   const now = () => new Date().toISOString();
   const emptyAttempt = () => ({ revealed: false, results: {}, confirmedAt: null, relation: null, submittedAt: null, startedAt: now() });
   const completeResults = (q, a) => q.parts.every(p => p.options.some(o => o.id === a.results[p.id]));
-  const count = (q, a) => q.parts.filter(p => a?.results[p.id] === p.answer).length;
-  const correct = (q, a) => Boolean(a?.submittedAt && count(q, a) === 3 && a.relation === q.relation.answer);
+  const count = (q, a) => q.parts.filter(p => a?.results?.[p.id] === p.answer).length;
+  const correct = (q, a) => Boolean(a?.submittedAt && count(q, a) === q.parts.length && a.relation === q.relation.answer);
+  const defaultConfig = { id, title, version, storageKey, conditions, source, questions, number: 10 };
 
-  window.createConnectedUnit = ({ panel, onChange, onExit }) => {
+  window.createConnectedUnit = ({ panel, onChange, onExit, onPrevious, config = defaultConfig, nextLabel = '概念复习' }) => {
+    const { id, title, version, storageKey, conditions, source, questions } = config;
     let storageMessage = '';
     const initial = () => ({ version, active: false, step: 0, attempts: {}, first: {}, history: {} });
     let state = initial();
@@ -92,9 +94,11 @@
       save(); render(); focusAt('#lesson-title');
     }
     function renderConditions() {
-      return `<details class="unit-conditions"><summary>案例条件与来源</summary><p>${esc(conditions)}</p><p>按完成销售确认收入，而不是等货款收齐；仅适用于本例条件。<a href="${source.url}" target="_blank" rel="noopener noreferrer">${esc(source.title)}</a>。核对日期：${source.checked}。</p></details>`;
+      const sources = Array.isArray(source) ? source : [source];
+      return `<details class="unit-conditions"><summary>案例条件与来源</summary><p>${esc(conditions)}</p><p>${esc(config.sourceNote || '按完成销售确认收入，而不是等货款收齐；仅适用于本例条件。')}${sources.map(s => `<a href="${s.url}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a>（核对日期：${s.checked}）`).join('；')}。</p></details>`;
     }
     function story() {
+      if (config.storyHTML) return config.storyHTML + renderConditions();
       return `<h2 class="lesson-title" id="lesson-title" tabindex="-1">赚了钱，为什么手里的钱反而少了？</h2>
         <div class="unit-reading"><p>一家冰淇淋店今天卖出了10元冰淇淋。</p><p>做这些冰淇淋的材料花了4元，今天已经付款。</p><p>顾客今天只付3元，剩下7元明天再付。</p></div>
         <div class="unit-facts">
@@ -124,34 +128,34 @@
         ${submitted ? feedback(p, selected) : ''}</div>`;
     }
     function explanation(q) {
-      return `<section class="unit-explanation" aria-label="完整解析"><h3>把交易分开看</h3>${q.trace ? `<div class="unit-facts">${q.trace.map(t => `<section><h4>${esc(t.label)}</h4><dl><div><dt>当天利润的影响</dt><dd>${t.profit}</dd></div><div><dt>现金变化</dt><dd>${t.cash}</dd></div><div><dt>应收账款变化</dt><dd>${t.ar}</dd></div></dl></section>`).join('')}</div>` : ''}${q.explanation.map(p => `<p>${esc(p)}</p>`).join('')}</section>`;
+      return `<section class="unit-explanation" aria-label="完整解析"><h3>把交易分开看</h3>${q.trace ? `<div class="unit-facts">${q.trace.map(t => `<section><h4>${esc(t.label)}</h4><dl>${(t.metrics || [['当天利润的影响', t.profit], ['现金变化', t.cash], ['应收账款变化', t.ar]]).map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></section>`).join('')}</div>` : ''}${q.explanation.map(p => `<p>${esc(p)}</p>`).join('')}</section>`;
     }
     function exercise(q) {
       const a = attempt(q);
       return `<h2 class="lesson-title" id="lesson-title" tabindex="-1">${esc(q.title)}</h2><div class="unit-reading">${q.story.map(p => `<p>${esc(p)}</p>`).join('')}<p>${esc(q.prompt)}</p></div>
         <form id="unit-form" novalidate>
           ${!a.revealed ? '<button type="button" class="primary-button" data-unit-action="reveal">显示选项</button>' : `${q.parts.map(p => field(q, p, a)).join('')}
-          ${!a.confirmedAt ? `<div class="submit-row"><span id="unit-selection-status" class="selection-status" aria-live="polite">已选 ${Object.keys(a.results).length}/3</span><button type="submit" class="primary-button">确认结果</button></div>` : `<section class="unit-relation" id="unit-relation" tabindex="-1">${field(q, q.relation, a, true)}</section>${!a.submittedAt ? '<div class="submit-row"><span class="selection-status">三个结果已确认</span><button type="submit" class="primary-button">提交</button></div>' : `${explanation(q)}<button type="button" class="text-button" data-unit-action="retry">重新练习</button>`}`}`}
+          ${!a.confirmedAt ? `<div class="submit-row"><span id="unit-selection-status" class="selection-status" aria-live="polite">已选 ${Object.keys(a.results).length}/${q.parts.length}</span><button type="submit" class="primary-button">确认结果</button></div>` : `<section class="unit-relation" id="unit-relation" tabindex="-1">${field(q, q.relation, a, true)}</section>${!a.submittedAt ? '<div class="submit-row"><span class="selection-status">数值结果已确认</span><button type="submit" class="primary-button">提交</button></div>' : `${explanation(q)}<button type="button" class="text-button" data-unit-action="retry">重新练习</button>`}`}`}
           <p id="unit-error" class="unit-error" role="alert"></p>
         </form>${renderConditions()}`;
     }
     function review() {
-      return `<h2 class="lesson-title" id="lesson-title" tabindex="-1">同一笔交易，要分开看三个结果</h2>
-        <div class="unit-facts"><section><h3>利润</h3><p>本期确认了哪些销售，对应哪些成本和费用？</p></section><section><h3>现金</h3><p>本期实际收到多少、付出多少？</p></section><section><h3>应收账款</h3><p>原来欠多少，收回多少，又新增多少？</p></section></div>
-        <div class="unit-reading"><p>看到公司利润增加，不能直接认定它收到的现金也增加。</p><p>看到应收账款增加，也不能直接认定公司变差。先分清新增销售与收款分别发生了什么；仅凭这几个数字，还不足以判断欠款能否及时收回。</p></div>
+      return `<h2 class="lesson-title" id="lesson-title" tabindex="-1">${esc(config.reviewTitle || '同一笔交易，要分开看三个结果')}</h2>
+        ${config.reviewHTML || `<div class="unit-facts"><section><h3>利润</h3><p>本期确认了哪些销售，对应哪些成本和费用？</p></section><section><h3>现金</h3><p>本期实际收到多少、付出多少？</p></section><section><h3>应收账款</h3><p>原来欠多少，收回多少，又新增多少？</p></section></div>
+        <div class="unit-reading"><p>看到公司利润增加，不能直接认定它收到的现金也增加。</p><p>看到应收账款增加，也不能直接认定公司变差。先分清新增销售与收款分别发生了什么；仅凭这几个数字，还不足以判断欠款能否及时收回。</p></div>`}
         <section class="unit-records"><h3>本轮记录</h3>${questions.map((q, i) => {
           const first = state.first[q.id];
           const latest = state.history[q.id]?.at(-1);
           const submitted = first?.submittedAt;
-          const note = !submitted ? (first ? '三个结果已确认，关系判断尚未提交。' : '尚未提交。') : `首次结果 ${count(q, first)}/3；关系判断${first.relation === q.relation.answer ? '正确' : '有误'}。${correct(q, latest) && !correct(q, first) ? ' 查看反馈后已完成纠正。' : ''}`;
+          const note = !submitted ? (first ? '数值结果已确认，关系判断尚未提交。' : '尚未提交。') : `首次结果 ${count(q, first)}/${q.parts.length}；关系判断${first.relation === q.relation.answer ? '正确' : '有误'}。${correct(q, latest) && !correct(q, first) ? ' 查看反馈后已完成纠正。' : ''}`;
           return `<section><h4>练习${i === 0 ? '一' : '二'}：${esc(q.title)}</h4><p>${note}</p><button type="button" class="text-button" data-unit-step="${i + 1}">查看练习${i === 0 ? '一' : '二'}</button></section>`;
         }).join('')}</section>`;
     }
     function render() {
       const names = ['故事与示范', '练习一', '练习二', '回顾'];
       document.title = `${names[state.step]} · ${title} · 投资概念复习册`;
-      panel.innerHTML = `<div class="lesson-content connected-unit"><div class="lesson-meta"><span class="lesson-position">第 ${state.step + 1} / 4 步</span><span>利润·现金流·应收账款</span></div>${state.step === 0 ? story() : state.step === 3 ? review() : exercise(questions[state.step - 1])}</div>
-        <nav class="lesson-nav" aria-label="串联单元学习步骤"><button type="button" data-unit-action="previous" ${state.step === 0 ? 'disabled' : ''}><span>← 上一页</span><strong>${names[state.step - 1] || ''}</strong></button><button type="button" data-unit-action="next"><span>下一页 →</span><strong>${names[state.step + 1] || '概念复习'}</strong></button></nav>`;
+      panel.innerHTML = `<div class="lesson-content connected-unit"><div class="lesson-meta"><span class="lesson-position">第 ${state.step + 1} / 4 步</span><span>${esc(config.meta || '利润·现金流·应收账款')}</span></div>${state.step === 0 ? story() : state.step === 3 ? review() : exercise(questions[state.step - 1])}</div>
+        <nav class="lesson-nav" aria-label="串联单元学习步骤"><button type="button" data-unit-action="previous" ${state.step === 0 && !onPrevious ? 'disabled' : ''}><span>← 上一页</span><strong>${names[state.step - 1] || (onPrevious ? '第10单元' : '')}</strong></button><button type="button" data-unit-action="next"><span>下一页 →</span><strong>${esc(names[state.step + 1] || nextLabel)}</strong></button></nav>`;
     }
     function validateMissing(selector, message) {
       panel.querySelector('#unit-error').textContent = message;
@@ -167,11 +171,11 @@
       else if (!a.confirmedAt) a.results[input.dataset.unitField] = input.value;
       save();
       const status = panel.querySelector('#unit-selection-status');
-      if (status) status.textContent = `已选 ${Object.keys(a.results).length}/3`;
+      if (status) status.textContent = `已选 ${Object.keys(a.results).length}/${q.parts.length}`;
       panel.querySelector('#unit-error').textContent = '';
     });
     panel.addEventListener('submit', event => {
-      if (!event.target.matches('#unit-form')) return;
+      if (!state.active || !panel.contains(event.target) || !event.target.matches('#unit-form')) return;
       event.preventDefault();
       const q = questions[state.step - 1];
       const a = attempt(q);
@@ -179,7 +183,7 @@
         const missing = q.parts.find(p => !p.options.some(o => o.id === a.results[p.id]));
         if (missing) return validateMissing(`#unit-field-${missing.id}`, '请选择这一项。');
         a.confirmedAt = now();
-        state.first[q.id] ||= { results: clone(a.results), confirmedAt: a.confirmedAt, relation: null, submittedAt: null, snapshot: { version, conditions, source, question: clone(q), context: '第一天销售10元、对应材料成本4元并支付，收到3元，期末应收账款7元。' } };
+        state.first[q.id] ||= { results: clone(a.results), confirmedAt: a.confirmedAt, relation: null, submittedAt: null, snapshot: { version, unitId: id, conditions, source, question: clone(q), context: config.context || '第一天销售10元、对应材料成本4元并支付，收到3元，期末应收账款7元。' } };
         save(); render(); focusAt('#unit-relation');
       } else if (!a.submittedAt) {
         if (!q.relation.options.some(o => o.id === a.relation)) return validateMissing('#unit-field-relation', '请选择关系解释。');
@@ -194,18 +198,18 @@
     });
     panel.addEventListener('click', event => {
       const button = event.target.closest('[data-unit-action], [data-unit-step]');
-      if (!state.active || !button || button.disabled) return;
+      if (!state.active || !button || !panel.contains(button) || button.disabled) return;
       if (button.dataset.unitStep) return move(Number(button.dataset.unitStep));
       const action = button.dataset.unitAction;
       if (action === 'next') return state.step < 3 ? move(state.step + 1) : onExit();
-      if (action === 'previous') return move(state.step - 1);
+      if (action === 'previous') return state.step === 0 && onPrevious ? onPrevious() : move(state.step - 1);
       const q = questions[state.step - 1];
       if (!q) return;
       if (action === 'reveal') { attempt(q).revealed = true; save(); render(); focusAt('#unit-field-profit'); }
       if (action === 'retry') { state.attempts[q.id] = emptyAttempt(); save(); render(); focusAt('#lesson-title'); }
     });
     return {
-      id, title, render,
+      id, title, render, number: config.number, keywords: config.keywords || title,
       shouldResume: () => location.hash === `#${id}` || (!location.hash && state.active),
       setActive(active) { state.active = active; save(); },
       get step() { return state.step; },
