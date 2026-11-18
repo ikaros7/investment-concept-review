@@ -59,7 +59,7 @@
 
   function readState() {
     const initial = {
-      records: {}, lastLesson: lessons[0].id, fontSize: 18,
+      records: {}, lastLesson: lessons[0].id, lastUnit: null, fontSize: 18,
       directory: { scrollTop: 0, expanded: null, query: '' }
     };
     try {
@@ -74,6 +74,7 @@
         }
       }
       if (lessonById.has(saved.lastLesson)) initial.lastLesson = saved.lastLesson;
+      if (typeof saved.lastUnit === 'string') initial.lastUnit = saved.lastUnit;
       if (Number.isFinite(saved.fontSize)) initial.fontSize = Math.min(26, Math.max(16, Math.round(saved.fontSize)));
       if (Number.isFinite(saved.directory?.scrollTop)) initial.directory.scrollTop = Math.max(0, saved.directory.scrollTop);
       if (Array.isArray(saved.directory?.expanded)) {
@@ -106,7 +107,28 @@
   const unitById = new Map(units.map(unit => [unit.id, unit]));
   const currentUnit = () => unitById.get(currentId);
   function storageMessages() { return [storageMessage, ...units.map(unit => unit.storageMessage)].filter(Boolean).join(' '); }
-  let currentId = units.find(unit => unit.shouldResume())?.id || getProgressLesson().id;
+  function getResumeUnit() {
+    const remembered = unitById.get(state.lastUnit);
+    if (remembered) return remembered;
+    const active = units.find(unit => unit.active);
+    if (active) return active;
+    // Older releases stored each unit separately, without a course-wide bookmark.
+    let latest;
+    let latestTime = '';
+    for (const unit of units) {
+      const time = unit.lastPracticeTime;
+      if (time > latestTime) {
+        latest = unit;
+        latestTime = time;
+      }
+    }
+    return latest || units[0];
+  }
+
+  const resumeUnit = getResumeUnit();
+  const requestedId = location.hash.slice(1);
+  let currentId = unitById.has(requestedId) || lessonById.has(requestedId) ? requestedId : resumeUnit.id;
+  state.lastUnit = currentUnit()?.id || resumeUnit.id;
   history.replaceState(null, '', `#${currentId}`);
   state.directory.expanded ??= [currentUnit() ? unitChapterId : lessonById.get(currentId).chapter];
 
@@ -345,8 +367,12 @@
   function goToLesson(id, clearSearch = false) {
     if (!lessonById.has(id) && !unitById.has(id)) return;
     currentId = id;
-    if (!unitById.has(id)) state.lastLesson = id;
-    else if (!state.directory.expanded.includes(unitChapterId)) state.directory.expanded.push(unitChapterId);
+    if (unitById.has(id)) {
+      state.lastUnit = id;
+      if (!state.directory.expanded.includes(unitChapterId)) state.directory.expanded.push(unitChapterId);
+    } else {
+      state.lastLesson = id;
+    }
     units.forEach(unit => unit.setActive(id === unit.id));
     if (clearSearch) {
       state.directory.query = '';
@@ -518,5 +544,5 @@
   renderLesson();
   locateProgressInDirectory();
   directoryContent.inert = mobileLayout.matches;
-  document.getElementById('storage-status').textContent = storageMessages();
+  saveState();
 })();

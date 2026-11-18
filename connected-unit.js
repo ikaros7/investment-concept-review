@@ -218,7 +218,16 @@
     });
     return {
       id, title, render, number: config.number, keywords: config.keywords || title,
-      shouldResume: () => location.hash === `#${id}` || (!location.hash && state.active),
+      get active() { return state.active; },
+      get lastPracticeTime() {
+        const attempts = [...Object.values(state.attempts), ...Object.values(state.history).flat()];
+        let latest = '';
+        for (const attempt of attempts) {
+          const time = attempt.submittedAt || attempt.confirmedAt || attempt.startedAt;
+          if (typeof time === 'string' && time > latest) latest = time;
+        }
+        return latest;
+      },
       setActive(active) {
         if (state.active === active) return;
         state.active = active;
