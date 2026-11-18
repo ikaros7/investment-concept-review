@@ -136,6 +136,28 @@ button { color: inherit; }
 .directory-toggle svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .directory-backdrop { display: none; }
 .noscript { padding: 30px; }
+.unit-directory-entry { padding: 0 16px 16px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+.unit-directory-entry .concept-item { width: 100%; margin: 0; }
+.connected-unit p, .connected-unit li, .connected-unit dl { font-size: var(--reading-size); line-height: 1.9; overflow-wrap: anywhere; }
+.unit-reading { margin-bottom: 24px; }
+.unit-reading p { margin: 0 0 16px; }
+.unit-facts { display: grid; gap: 16px; margin: 24px 0 32px; }
+.unit-facts section { padding: 16px; border: 1px solid var(--line); border-radius: 8px; }
+.unit-facts h3, .unit-facts h4, .unit-records h3, .unit-records h4, .unit-explanation h3, .connected-unit .example-box h3 { margin: 0 0 12px; font-size: var(--reading-size); }
+.unit-facts p { margin: 0; }
+.connected-unit .example-box p + p { margin-top: 16px; }
+.unit-facts dl { margin: 0; }
+.unit-facts dl div { display: flex; justify-content: space-between; gap: 16px; }
+.unit-facts dd { margin: 0; flex-shrink: 0; }
+.unit-conditions { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 32px; color: var(--muted); }
+.unit-conditions summary { cursor: pointer; min-height: 44px; display: list-item; font-size: 14px; padding: 8px 0; }
+.unit-conditions p { font-size: 14px; }
+.unit-field, .unit-relation { scroll-margin-top: calc(var(--header-height) + 16px); }
+.unit-relation { border-top: 1px solid var(--line); padding-top: 24px; outline: none; }
+.unit-error { color: #8c6433; margin-bottom: 0; }
+.unit-error:empty { display: none; }
+.unit-explanation, .unit-records { border-top: 1px solid var(--line); padding-top: 24px; margin-top: 32px; }
+.unit-records section + section { margin-top: 24px; }
 @media (max-width: 960px) {
   .workspace { grid-template-columns: 290px minmax(0, 1fr); gap: 16px; }
   .lesson-panel { padding: 24px; }

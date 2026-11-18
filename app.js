@@ -86,9 +86,18 @@
   }
 
   const state = readState();
-  let currentId = getProgressLesson().id;
+  const unit = window.createConnectedUnit({
+    panel: document.getElementById('lesson-panel'),
+    onChange() {
+      renderProgress();
+      renderDirectory();
+      document.getElementById('storage-status').textContent = [storageMessage, unit.storageMessage].filter(Boolean).join(' ');
+    },
+    onExit() { goToLesson(getProgressLesson().id, true); }
+  });
+  let currentId = unit.shouldResume() ? unit.id : getProgressLesson().id;
   history.replaceState(null, '', `#${currentId}`);
-  state.directory.expanded ??= [lessonById.get(currentId).chapter];
+  state.directory.expanded ??= [lessonById.get(currentId)?.chapter || 'accounts'];
 
   function saveState() {
     try {
@@ -97,7 +106,7 @@
     } catch {
       storageMessage = '当前浏览器未能保存记录。本页仍可练习，关闭后本次记录可能丢失。';
     }
-    document.getElementById('storage-status').textContent = storageMessage;
+    document.getElementById('storage-status').textContent = [storageMessage, unit.storageMessage].filter(Boolean).join(' ');
   }
 
   function correctCount(lesson) {
@@ -120,6 +129,22 @@
   }
 
   function renderProgress() {
+    if (currentId === unit.id) {
+      document.getElementById('completed-count').textContent = unit.step + 1;
+      document.getElementById('total-count').textContent = 4;
+      document.querySelector('.progress-label').textContent = '串联 ';
+      document.getElementById('review-count').textContent = unit.needsReview ? 1 : 0;
+      document.getElementById('progress-fill').style.transform = `scaleX(${(unit.step + 1) / 4})`;
+      const track = document.getElementById('progress-track');
+      track.setAttribute('aria-label', '串联单元当前步骤');
+      track.setAttribute('aria-valuemax', 4);
+      track.setAttribute('aria-valuenow', unit.step + 1);
+      document.getElementById('progress-resume').setAttribute('aria-label', `串联单元第 ${unit.step + 1} / 4 步，回到当前学习步骤`);
+      document.getElementById('review-needed').disabled = !unit.needsReview;
+      document.getElementById('review-needed').setAttribute('aria-label', '回到串联单元待巩固练习');
+      return;
+    }
+    document.querySelector('.progress-label').textContent = '复习 ';
     const completed = lessons.filter(lesson => state.records[lesson.id]).length;
     const needsReview = reviewLessons().length;
     document.getElementById('completed-count').textContent = completed;
@@ -127,6 +152,7 @@
     document.getElementById('review-count').textContent = needsReview;
     document.getElementById('progress-fill').style.transform = `scaleX(${completed / lessons.length})`;
     const track = document.getElementById('progress-track');
+    track.setAttribute('aria-label', '已练习概念');
     track.setAttribute('aria-valuemax', lessons.length);
     track.setAttribute('aria-valuenow', completed);
     const progressLesson = getProgressLesson();
@@ -143,8 +169,10 @@
     const matches = lessons.filter(lesson => !keyword ||
       `${lesson.title} ${lesson.summary} ${lesson.example}`.toLocaleLowerCase().includes(keyword)
     );
-    document.getElementById('directory-count').textContent = keyword ? `${matches.length} / ${lessons.length}` : `${lessons.length} 个`;
-    directoryList.innerHTML = bank.chapters.map(chapter => {
+    const showUnit = !keyword || `${unit.title} 串联学习 利润 现金流 应收账款`.includes(keyword);
+    document.getElementById('directory-count').textContent = keyword ? `${matches.length + Number(showUnit)} 项` : `${lessons.length} 概念·1单元`;
+    const unitEntry = showUnit ? `<div class="unit-directory-entry"><button type="button" class="concept-item ${currentId === unit.id ? 'active progress-current' : ''}" data-lesson="${unit.id}" ${currentId === unit.id ? 'aria-current="page"' : ''} aria-label="串联学习：${unit.title}"><span class="concept-name">${unit.title}</span><span class="dot ${unit.done ? 'done' : unit.needsReview ? 'review' : ''}" aria-hidden="true"></span></button></div>` : '';
+    directoryList.innerHTML = unitEntry + bank.chapters.map(chapter => {
       const items = matches.filter(lesson => lesson.chapter === chapter.id);
       if (!items.length) return '';
       const chapterLessons = lessons.filter(lesson => lesson.chapter === chapter.id);
@@ -171,7 +199,7 @@
   }
 
   function locateProgressInDirectory() {
-    const lesson = getProgressLesson();
+    const lesson = currentId === unit.id ? { id: unit.id, chapter: 'accounts' } : getProgressLesson();
     state.directory.query = '';
     document.getElementById('concept-search').value = '';
     if (!state.directory.expanded.includes(lesson.chapter)) state.directory.expanded.push(lesson.chapter);
@@ -210,6 +238,7 @@
   }
 
   function renderLesson() {
+    if (currentId === unit.id) { unit.render(); return; }
     const lesson = lessonById.get(currentId);
     const record = state.records[currentId];
     const submitted = Boolean(record && !drafts.has(currentId));
@@ -293,9 +322,10 @@
   }
 
   function goToLesson(id, clearSearch = false) {
-    if (!lessonById.has(id)) return;
+    if (!lessonById.has(id) && id !== unit.id) return;
     currentId = id;
-    state.lastLesson = id;
+    if (id !== unit.id) state.lastLesson = id;
+    unit.setActive(id === unit.id);
     if (clearSearch) {
       state.directory.query = '';
       document.getElementById('concept-search').value = '';
@@ -303,6 +333,7 @@
     if (location.hash !== `#${id}`) history.pushState(null, '', `#${id}`);
     closeDirectory();
     renderDirectory();
+    renderProgress();
     renderLesson();
     const title = document.getElementById('lesson-title');
     title.focus({ preventScroll: true });
@@ -340,6 +371,7 @@
   });
 
   document.getElementById('lesson-panel').addEventListener('change', event => {
+    if (currentId === unit.id) return;
     if (!event.target.matches('input[data-question]')) return;
     const answers = [...(drafts.get(currentId) || [null, null])];
     answers[Number(event.target.dataset.question)] = Number(event.target.value);
@@ -350,6 +382,7 @@
   });
 
   document.getElementById('lesson-panel').addEventListener('submit', event => {
+    if (currentId === unit.id) return;
     event.preventDefault();
     const lesson = lessonById.get(currentId);
     const answers = drafts.get(currentId);
@@ -372,6 +405,7 @@
   });
 
   document.getElementById('lesson-panel').addEventListener('click', event => {
+    if (currentId === unit.id) return;
     const button = event.target.closest('[data-action]');
     if (!button || button.disabled) return;
     const index = lessonById.get(currentId).index;
@@ -390,10 +424,11 @@
   });
 
   document.getElementById('progress-resume').addEventListener('click', () => {
-    goToLesson(getProgressLesson().id, true);
+    goToLesson(currentId === unit.id ? unit.id : getProgressLesson().id, true);
   });
 
   document.getElementById('review-needed').addEventListener('click', () => {
+    if (currentId === unit.id) { unit.review(); return; }
     const pending = reviewLessons();
     if (!pending.length) return;
     const currentIndex = lessonById.get(currentId).index;
@@ -450,15 +485,16 @@
 
   window.addEventListener('hashchange', () => {
     const id = location.hash.slice(1);
-    if (lessonById.has(id) && id !== currentId) goToLesson(id, true);
+    if ((lessonById.has(id) || id === unit.id) && id !== currentId) goToLesson(id, true);
   });
 
-  state.lastLesson = currentId;
+  if (currentId !== unit.id) state.lastLesson = currentId;
+  unit.setActive(currentId === unit.id);
   applyFontSize();
   updateHeaderHeight();
   renderProgress();
   renderLesson();
   locateProgressInDirectory();
   directoryContent.inert = mobileLayout.matches;
-  document.getElementById('storage-status').textContent = storageMessage;
+  document.getElementById('storage-status').textContent = [storageMessage, unit.storageMessage].filter(Boolean).join(' ');
 })();
