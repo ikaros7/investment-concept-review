@@ -47,7 +47,8 @@
   const completeResults = (q, a) => q.parts.every(p => p.options.some(o => o.id === a.results[p.id]));
   const count = (q, a) => q.parts.filter(p => a?.results?.[p.id] === p.answer).length;
   const correct = (q, a) => Boolean(a?.submittedAt && count(q, a) === q.parts.length && a.relation === q.relation.answer);
-  const defaultConfig = { id, title, version, storageKey, conditions, source, questions, number: 10 };
+  const defaultConfig = { id, title, version, storageKey, conditions, source, questions, number: 10, keywords: '利润 现金流 应收账款' };
+  window.CONNECTED_UNIT_10 = defaultConfig;
 
   window.createConnectedUnit = ({ panel, onChange, onExit, onPrevious, config = defaultConfig, nextLabel = '概念复习', previousLabel = '上一单元' }) => {
     const { id, title, version, storageKey, conditions, source, questions } = config;
@@ -77,10 +78,10 @@
       }
     } catch { storageMessage = '串联单元记录未能读取，已从头打开；原有概念记录不受影响。'; }
 
-    function save() {
+    function save(notify = true) {
       try { localStorage.setItem(storageKey, JSON.stringify(state)); storageMessage = ''; }
       catch { storageMessage = '串联单元记录未能保存，关闭后本次进度可能丢失。'; }
-      onChange();
+      if (notify) onChange();
     }
     function attempt(q) { return state.attempts[q.id] ||= emptyAttempt(); }
     function focusAt(selector) {
@@ -99,6 +100,12 @@
     }
     function story() {
       if (config.storyHTML) return config.storyHTML + renderConditions();
+      if (config.story) {
+        return `<h2 class="lesson-title" id="lesson-title" tabindex="-1">${esc(config.heading)}</h2>
+          <div class="unit-reading"><p><strong>${esc(config.goal)}</strong></p>${config.story.map(p => `<p>${esc(p)}</p>`).join('')}</div>
+          ${config.worked.map(({ title, paragraphs }) => `<section class="example-box"><h3>${esc(title)}</h3>${paragraphs.map(p => `<p>${esc(p)}</p>`).join('')}</section>`).join('')}
+          ${renderConditions()}`;
+      }
       return `<h2 class="lesson-title" id="lesson-title" tabindex="-1">赚了钱，为什么手里的钱反而少了？</h2>
         <div class="unit-reading"><p>一家冰淇淋店今天卖出了10元冰淇淋。</p><p>做这些冰淇淋的材料花了4元，今天已经付款。</p><p>顾客今天只付3元，剩下7元明天再付。</p></div>
         <div class="unit-facts">
@@ -128,7 +135,7 @@
         ${submitted ? feedback(p, selected) : ''}</div>`;
     }
     function explanation(q) {
-      return `<section class="unit-explanation" aria-label="完整解析"><h3>把交易分开看</h3>${q.trace ? `<div class="unit-facts">${q.trace.map(t => `<section><h4>${esc(t.label)}</h4><dl>${(t.metrics || [['当天利润的影响', t.profit], ['现金变化', t.cash], ['应收账款变化', t.ar]]).map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></section>`).join('')}</div>` : ''}${q.explanation.map(p => `<p>${esc(p)}</p>`).join('')}</section>`;
+      return `<section class="unit-explanation" aria-label="完整解析"><h3>${q.trace ? '把交易分开看' : '完整解析'}</h3>${q.trace ? `<div class="unit-facts">${q.trace.map(t => `<section><h4>${esc(t.label)}</h4><dl>${(t.metrics || [['当天利润的影响', t.profit], ['现金变化', t.cash], ['应收账款变化', t.ar]]).map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl></section>`).join('')}</div>` : ''}${q.explanation.map(p => `<p>${esc(p)}</p>`).join('')}</section>`;
     }
     function exercise(q) {
       const a = attempt(q);
@@ -140,9 +147,10 @@
         </form>${renderConditions()}`;
     }
     function review() {
-      return `<h2 class="lesson-title" id="lesson-title" tabindex="-1">${esc(config.reviewTitle || '同一笔交易，要分开看三个结果')}</h2>
-        ${config.reviewHTML || `<div class="unit-facts"><section><h3>利润</h3><p>本期确认了哪些销售，对应哪些成本和费用？</p></section><section><h3>现金</h3><p>本期实际收到多少、付出多少？</p></section><section><h3>应收账款</h3><p>原来欠多少，收回多少，又新增多少？</p></section></div>
-        <div class="unit-reading"><p>看到公司利润增加，不能直接认定它收到的现金也增加。</p><p>看到应收账款增加，也不能直接认定公司变差。先分清新增销售与收款分别发生了什么；仅凭这几个数字，还不足以判断欠款能否及时收回。</p></div>`}
+      return `<h2 class="lesson-title" id="lesson-title" tabindex="-1">${esc(config.reviewTitle || (config.reviewText ? title + '回顾' : '同一笔交易，要分开看三个结果'))}</h2>
+        ${config.reviewHTML || (config.reviewText ? `<div class="unit-reading"><p>${esc(config.reviewText)}</p></div>` : `<div class="unit-facts"><section><h3>利润</h3><p>本期确认了哪些销售，对应哪些成本和费用？</p></section><section><h3>现金</h3><p>本期实际收到多少、付出多少？</p></section><section><h3>应收账款</h3><p>原来欠多少，收回多少，又新增多少？</p></section></div>
+        <div class="unit-reading"><p>看到公司利润增加，不能直接认定它收到的现金也增加。</p><p>看到应收账款增加，也不能直接认定公司变差。先分清新增销售与收款分别发生了什么；仅凭这几个数字，还不足以判断欠款能否及时收回。</p></div>`)}
+        ${config.recall ? `<div class="unit-reading"><p>${esc(config.recall)}</p></div>` : ''}
         <section class="unit-records"><h3>本轮记录</h3>${questions.map((q, i) => {
           const first = state.first[q.id];
           const latest = state.history[q.id]?.at(-1);
@@ -205,13 +213,17 @@
       if (action === 'previous') return state.step === 0 && onPrevious ? onPrevious() : move(state.step - 1);
       const q = questions[state.step - 1];
       if (!q) return;
-      if (action === 'reveal') { attempt(q).revealed = true; save(); render(); focusAt('#unit-field-profit'); }
+      if (action === 'reveal') { attempt(q).revealed = true; save(); render(); focusAt('.unit-field'); }
       if (action === 'retry') { state.attempts[q.id] = emptyAttempt(); save(); render(); focusAt('#lesson-title'); }
     });
     return {
       id, title, render, number: config.number, keywords: config.keywords || title,
       shouldResume: () => location.hash === `#${id}` || (!location.hash && state.active),
-      setActive(active) { state.active = active; save(); },
+      setActive(active) {
+        if (state.active === active) return;
+        state.active = active;
+        save(false);
+      },
       get step() { return state.step; },
       get storageMessage() { return storageMessage; },
       get needsReview() { return questions.some(q => { const a = state.history[q.id]?.at(-1); return a && !correct(q, a); }); },

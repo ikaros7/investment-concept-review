@@ -5,6 +5,7 @@
   const lessons = bank.lessons;
   const lessonById = new Map(lessons.map((lesson, index) => [lesson.id, { ...lesson, index }]));
   const chapterById = new Map(bank.chapters.map(chapter => [chapter.id, chapter]));
+  const unitChapterId = 'connected-units';
   const storageKey = 'investment-concept-review-v1';
   const drafts = new Map();
   const choiceOrders = new Map();
@@ -76,7 +77,7 @@
       if (Number.isFinite(saved.fontSize)) initial.fontSize = Math.min(26, Math.max(16, Math.round(saved.fontSize)));
       if (Number.isFinite(saved.directory?.scrollTop)) initial.directory.scrollTop = Math.max(0, saved.directory.scrollTop);
       if (Array.isArray(saved.directory?.expanded)) {
-        initial.directory.expanded = [...new Set(saved.directory.expanded.filter(id => chapterById.has(id)))];
+        initial.directory.expanded = [...new Set(saved.directory.expanded.filter(id => id === unitChapterId || chapterById.has(id)))];
       }
       if (typeof saved.directory?.query === 'string') initial.directory.query = saved.directory.query;
     } catch {
@@ -86,7 +87,9 @@
   }
 
   const state = readState();
-  const unitConfigs = [undefined, window.CONNECTED_UNIT_11, window.CONNECTED_UNIT_12];
+  const unitConfigs = [...(window.CONNECTED_UNIT_DESIGNS || []), window.CONNECTED_UNIT_10, window.CONNECTED_UNIT_11, window.CONNECTED_UNIT_12]
+    .filter(Boolean)
+    .sort((a, b) => a.number - b.number);
   const units = unitConfigs.map((config, index) => window.createConnectedUnit({
     config,
     panel: document.getElementById('lesson-panel'),
@@ -97,7 +100,7 @@
     },
     onExit() { goToLesson(index < units.length - 1 ? units[index + 1].id : getProgressLesson().id, true); },
     onPrevious: index > 0 ? () => goToLesson(units[index - 1].id, true) : undefined,
-    previousLabel: index > 0 ? `第${unitConfigs[index - 1]?.number || 10}单元` : '',
+    previousLabel: index > 0 ? `第${unitConfigs[index - 1].number}单元` : '',
     nextLabel: index < unitConfigs.length - 1 ? `第${unitConfigs[index + 1].number}单元` : '概念复习'
   }));
   const unitById = new Map(units.map(unit => [unit.id, unit]));
@@ -105,7 +108,7 @@
   function storageMessages() { return [storageMessage, ...units.map(unit => unit.storageMessage)].filter(Boolean).join(' '); }
   let currentId = units.find(unit => unit.shouldResume())?.id || getProgressLesson().id;
   history.replaceState(null, '', `#${currentId}`);
-  state.directory.expanded ??= [lessonById.get(currentId)?.chapter || 'accounts'];
+  state.directory.expanded ??= [currentUnit() ? unitChapterId : lessonById.get(currentId).chapter];
 
   function saveState() {
     try {
@@ -180,7 +183,16 @@
     );
     const matchingUnits = units.filter(unit => !keyword || `${unit.title} ${unit.keywords} 第${unit.number}单元 串联学习`.toLocaleLowerCase().includes(keyword));
     document.getElementById('directory-count').textContent = keyword ? `${matches.length + matchingUnits.length} 项` : `${lessons.length} 概念·${units.length}单元`;
-    const unitEntry = matchingUnits.map(unit => `<div class="unit-directory-entry"><button type="button" class="concept-item ${currentId === unit.id ? 'active progress-current' : ''}" data-lesson="${unit.id}" ${currentId === unit.id ? 'aria-current="page"' : ''} aria-label="第${unit.number}串联单元：${unit.title}"><span class="concept-number">${unit.number}</span><span class="concept-name">${unit.title}</span><span class="dot ${unit.done ? 'done' : unit.needsReview ? 'review' : ''}" aria-hidden="true"></span></button></div>`).join('');
+    const unitEntry = matchingUnits.length ? `<details class="chapter" data-chapter="${unitChapterId}" ${keyword || state.directory.expanded.includes(unitChapterId) ? 'open' : ''}>
+      <summary><span class="chapter-name">串联学习</span><small>${keyword ? matchingUnits.length : units.length} 个</small></summary>
+      ${matchingUnits.map(unit => {
+        const active = currentId === unit.id;
+        return `<button type="button" class="concept-item ${active ? 'active progress-current' : ''}" data-lesson="${unit.id}" ${active ? 'aria-current="page"' : ''} aria-label="第${unit.number}串联单元：${escapeHtml(unit.title)}">
+          <span class="concept-number">${unit.number}</span><span class="concept-name">${escapeHtml(unit.title)}</span>
+          <span class="dot ${unit.done ? 'done' : unit.needsReview ? 'review' : ''}" aria-hidden="true"></span>
+        </button>`;
+      }).join('')}
+    </details>` : '';
     directoryList.innerHTML = unitEntry + bank.chapters.map(chapter => {
       const items = matches.filter(lesson => lesson.chapter === chapter.id);
       if (!items.length) return '';
@@ -208,7 +220,7 @@
   }
 
   function locateProgressInDirectory() {
-    const lesson = currentUnit() ? { id: currentId, chapter: 'accounts' } : getProgressLesson();
+    const lesson = currentUnit() ? { id: currentId, chapter: unitChapterId } : getProgressLesson();
     state.directory.query = '';
     document.getElementById('concept-search').value = '';
     if (!state.directory.expanded.includes(lesson.chapter)) state.directory.expanded.push(lesson.chapter);
@@ -334,6 +346,7 @@
     if (!lessonById.has(id) && !unitById.has(id)) return;
     currentId = id;
     if (!unitById.has(id)) state.lastLesson = id;
+    else if (!state.directory.expanded.includes(unitChapterId)) state.directory.expanded.push(unitChapterId);
     units.forEach(unit => unit.setActive(id === unit.id));
     if (clearSearch) {
       state.directory.query = '';
